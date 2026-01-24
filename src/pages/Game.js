@@ -1,17 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createDeck, shuffleDeck, getCardValue, sameRank, isSpecialCard, isRedKing } from '../utils/cardUtils';
+import { useMultiplayer } from '../context/MultiplayerContext';
+import { createDeck, shuffleDeck, getCardValue, sameRank, isSpecialCard } from '../utils/cardUtils';
 import PlayerHand from '../components/PlayerHand';
 import GameCenter from '../components/GameCenter';
 import Scoreboard from '../components/Scoreboard';
 import Card from '../components/Card';
 import WalletConnect from '../components/WalletConnect';
-import { Card as UICard } from '../components/ui/Card';
+import { Card as UICard, CardContent } from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { Home, RotateCcw, AlertCircle } from 'lucide-react';
+import { Home, RotateCcw, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 
 const Game = () => {
   const navigate = useNavigate();
+  const { isMultiplayer, roomCode, players: mpPlayers, gameState, isConnected, leaveRoom } = useMultiplayer();
+
+  // Single player state
   const [numPlayers, setNumPlayers] = useState(2);
   const [gameStarted, setGameStarted] = useState(false);
   const [players, setPlayers] = useState([]);
@@ -26,8 +30,6 @@ const Game = () => {
   const [dutchCallerIndex, setDutchCallerIndex] = useState(null);
   const [finalTurns, setFinalTurns] = useState(0);
   const [specialCardEffect, setSpecialCardEffect] = useState(null);
-  const [pendingPenalty, setPendingPenalty] = useState(0);
-  const [wallet, setWallet] = useState(null);
 
   // Initialize game
   const startGame = () => {
@@ -35,7 +37,6 @@ const Game = () => {
       const deck = shuffleDeck(createDeck(true)); // Double deck
       
       if (deck.length < (numPlayers * 4 + 1)) {
-        console.error('Not enough cards in deck!');
         return;
       }
       
@@ -70,7 +71,6 @@ const Game = () => {
       // Place first card on discard pile
       const firstDiscard = deck.pop();
       if (!firstDiscard) {
-        console.error('No card available for discard pile!');
         return;
       }
       const remainingDeck = deck;
@@ -87,10 +87,9 @@ const Game = () => {
       setDutchCallerIndex(null);
       setFinalTurns(0);
       setSpecialCardEffect(null);
-      setPendingPenalty(0);
       setGameStarted(true);
     } catch (error) {
-      console.error('Error starting game:', error);
+      // Game initialization error handled silently
     }
   };
 
@@ -296,10 +295,50 @@ const Game = () => {
     startGame();
   };
 
+  const handleLeaveGame = () => {
+    if (isMultiplayer) {
+      leaveRoom();
+    }
+    navigate('/');
+  };
+
   const currentPlayer = players[currentPlayerIndex];
   const canTakeDiscard = gamePhase === 'draw' && discardPile.length > 0;
 
-  if (!gameStarted) {
+  // Multiplayer - show wait screen if not started
+  if (isMultiplayer && !gameState?.started) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <UICard>
+            <CardContent className="p-8 text-center space-y-6">
+              <div className="flex items-center justify-center space-x-2">
+                {isConnected ? (
+                  <Wifi className="w-6 h-6 text-green-400 animate-pulse" />
+                ) : (
+                  <WifiOff className="w-6 h-6 text-red-400" />
+                )}
+                <span className="text-gray-300 font-semibold">
+                  {isConnected ? 'Connected' : 'Disconnected'}
+                </span>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-2">Waiting for players...</h2>
+                <p className="text-gray-400">Room: {roomCode}</p>
+                <p className="text-gray-500 text-sm mt-2">{mpPlayers.length} players joined</p>
+              </div>
+              <Button onClick={handleLeaveGame} variant="secondary" className="w-full">
+                Leave Room
+              </Button>
+            </CardContent>
+          </UICard>
+        </div>
+      </div>
+    );
+  }
+
+  // Single player setup
+  if (!gameStarted && !isMultiplayer) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
         <div className="max-w-2xl w-full relative z-10">
@@ -334,7 +373,7 @@ const Game = () => {
               </div>
               
               <div className="pt-4">
-                <WalletConnect onConnect={setWallet} />
+                <WalletConnect onConnect={() => {}} />
               </div>
               
               <Button
@@ -362,7 +401,20 @@ const Game = () => {
           <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
             <div>
               <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">BLITZ DUTCH</h1>
-              <p className="text-gray-400 text-xs font-medium uppercase tracking-widest">Card Game</p>
+              <div className="flex items-center space-x-2 mt-1">
+                <p className="text-gray-400 text-xs font-medium uppercase tracking-widest">
+                  {isMultiplayer ? 'Multiplayer' : 'Single Player'}
+                </p>
+                {isMultiplayer && (
+                  <>
+                    {isConnected ? (
+                      <Wifi className="w-3 h-3 text-green-400" />
+                    ) : (
+                      <WifiOff className="w-3 h-3 text-red-400" />
+                    )}
+                  </>
+                )}
+              </div>
             </div>
             <div className="flex flex-wrap gap-3">
               {dutchCalled && (
@@ -372,7 +424,7 @@ const Game = () => {
                 </div>
               )}
               <Button
-                onClick={() => navigate('/')}
+                onClick={handleLeaveGame}
                 variant="ghost"
                 size="sm"
               >

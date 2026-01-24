@@ -95,7 +95,7 @@ const Landing = () => {
 
             <motion.div 
               variants={itemVariants}
-              className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+              className="flex flex-col sm:flex-row gap-4 justify-center items-center flex-wrap"
             >
               <Button
                 onClick={() => navigate('/game')}
@@ -104,7 +104,16 @@ const Landing = () => {
                 className="group relative overflow-hidden"
               >
                 <Play className="w-5 h-5 mr-2 group-hover:translate-x-1 transition-transform" />
-                Start Game
+                Single Player
+              </Button>
+              <Button
+                onClick={() => navigate('/lobby')}
+                variant="secondary"
+                size="lg"
+                className="group"
+              >
+                <Zap className="w-5 h-5 mr-2" />
+                Multiplayer
               </Button>
               <Button
                 onClick={() => navigate('/rules')}
