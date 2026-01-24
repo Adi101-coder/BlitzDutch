@@ -46,9 +46,6 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2 group">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center group-hover:rotate-12 transition-transform duration-300">
-              <span className="text-black font-black text-lg">B</span>
-            </div>
             <span className="text-xl font-black text-white tracking-tight">BLITZ DUTCH</span>
           </Link>
 
