@@ -16,8 +16,8 @@ const PlayerHand = ({
       'transition-all duration-300',
       isActive && 'ring-2 ring-white border-white/30 scale-[1.02] shadow-[0_0_30px_rgba(255,255,255,0.2)]'
     )}>
-      <CardContent className="p-6">
-        <div className="flex flex-col items-center space-y-4">
+      <CardContent className="p-4">
+        <div className="flex flex-col items-center space-y-3">
           <div className="flex items-center space-x-3 w-full justify-center">
             <div className={cn(
               'w-2 h-2 rounded-full transition-all',
@@ -35,7 +35,7 @@ const PlayerHand = ({
               </span>
             )}
           </div>
-          <div className="flex space-x-3">
+          <div className="flex space-x-2 justify-center px-2">
             {cards.map((card, index) => (
               <Card
                 key={index}

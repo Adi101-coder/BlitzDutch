@@ -251,8 +251,8 @@ const Game = () => {
 
   // Calculate scores
   const calculateScores = () => {
-    const updatedPlayers = players.map((player, index) => {
-      // Reveal all cards for all players
+    const updatedPlayers = players.map(player => {
+      // Reveal all cards
       const revealedHand = player.hand.map(card => ({
         ...card,
         isRevealed: true
@@ -262,14 +262,11 @@ const Game = () => {
         return sum + getCardValue(card);
       }, 0);
 
-      // Deduct 10 points from Player 2 (index 1)
-      const finalRoundScore = index === 1 ? roundScore - 10 : roundScore;
-
       return {
         ...player,
         hand: revealedHand,
-        roundScore: finalRoundScore,
-        totalScore: player.totalScore + finalRoundScore,
+        roundScore,
+        totalScore: player.totalScore + roundScore,
       };
     });
 
@@ -281,8 +278,8 @@ const Game = () => {
       // If tied, Dutch caller has advantage (no penalty)
       // Only add penalty if Dutch caller doesn't have the lowest score
       if (dutchCallerScore > lowestScore) {
-        updatedPlayers[dutchCallerIndex].roundScore += 10;
-        updatedPlayers[dutchCallerIndex].totalScore += 10;
+        // updatedPlayers[dutchCallerIndex].roundScore += 10;
+        // updatedPlayers[dutchCallerIndex].totalScore += 10;
       }
     }
 
@@ -526,7 +523,7 @@ const Game = () => {
           <div className="space-y-4">
             {/* Current Player Hand */}
             {currentPlayer && (
-              <div>
+              <div className="mt-32">
                 <PlayerHand
                   player={currentPlayer}
                   cards={currentPlayer.hand}

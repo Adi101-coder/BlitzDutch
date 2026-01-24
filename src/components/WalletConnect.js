@@ -174,8 +174,8 @@ const WalletConnect = ({ onConnect }) => {
         </div>
 
         {/* Info Text */}
-        <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded text-xs text-gray-400">
-          <p className="font-semibold text-blue-300 mb-1">💡 How to connect:</p>
+        <div className="mt-4 p-3 bg-white/5 border border-white/20 rounded text-xs text-gray-400">
+          <p className="font-semibold text-white mb-1">💡 How to connect:</p>
           <ul className="space-y-1 text-xs">
             <li>• Install a supported wallet extension</li>
             <li>• Click the wallet button to connect</li>
