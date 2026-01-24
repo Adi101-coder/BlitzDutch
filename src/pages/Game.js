@@ -30,6 +30,13 @@ const Game = () => {
   const [dutchCallerIndex, setDutchCallerIndex] = useState(null);
   const [finalTurns, setFinalTurns] = useState(0);
   const [specialCardEffect, setSpecialCardEffect] = useState(null);
+  const [peekCounts, setPeekCounts] = useState({}); // Track how many cards each player has peeked
+  const [peekingPhase, setPeekingPhase] = useState(true); // Track if we're in initial peeking phase
+
+  // Power card states
+  const [powerCardActive, setPowerCardActive] = useState(null); // 'jack' or 'queen'
+  const [jackSwapSelection, setJackSwapSelection] = useState({ playerIndex: null, cardIndex: null, count: 0 }); // Track Jack swap selections
+  const [queenPeekCard, setQueenPeekCard] = useState(null); // Track which card Queen is peeking at
 
   // Initialize game
   const startGame = () => {
@@ -84,11 +91,13 @@ const Game = () => {
       setDrawnCard(null);
       setSelectedCardIndex(null);
       setShowScores(false);
-      setGamePhase('draw');
+      setGamePhase('peek'); // Start with peek phase
       setDutchCalled(false);
       setDutchCallerIndex(null);
       setFinalTurns(0);
       setSpecialCardEffect(null);
+      setPeekCounts({}); // Reset peek counts
+      setPeekingPhase(true); // Enable peeking phase
       setGameStarted(true);
     } catch (error) {
       console.error('Error starting game:', error);
@@ -142,6 +151,56 @@ const Game = () => {
     setSelectedCardIndex(index);
   };
 
+  // Handle peeking at initial cards
+  const handlePeekCard = (index) => {
+    if (gamePhase !== 'peek') return;
+
+    const playerPeekCount = peekCounts[currentPlayerIndex] || 0;
+    if (playerPeekCount >= 2) return; // Already peeked at 2 cards
+
+    // Update peek count first
+    const newPeekCounts = { ...peekCounts, [currentPlayerIndex]: playerPeekCount + 1 };
+    setPeekCounts(newPeekCounts);
+
+    // Temporarily reveal the card
+    setPlayers(prevPlayers => {
+      const updatedPlayers = [...prevPlayers];
+      const newHand = [...updatedPlayers[currentPlayerIndex].hand];
+      newHand[index] = { ...newHand[index], isRevealed: true, peeked: true };
+      updatedPlayers[currentPlayerIndex].hand = newHand;
+      return updatedPlayers;
+    });
+
+    // Hide the card after 2 seconds
+    setTimeout(() => {
+      setPlayers(prevPlayers => {
+        const updatedPlayers = [...prevPlayers];
+        const newHand = [...updatedPlayers[currentPlayerIndex].hand];
+        newHand[index] = { ...newHand[index], isRevealed: false };
+        updatedPlayers[currentPlayerIndex].hand = newHand;
+        return updatedPlayers;
+      });
+    }, 2000);
+  };
+
+  // Finish peeking phase and start game
+  const handleFinishPeeking = () => {
+    const playerPeekCount = peekCounts[currentPlayerIndex] || 0;
+    if (playerPeekCount < 2) return; // Must peek at 2 cards
+
+    // Check if all players have peeked
+    if (currentPlayerIndex < players.length - 1) {
+      // Move to next player for peeking
+      setCurrentPlayerIndex(currentPlayerIndex + 1);
+      setSelectedCardIndex(null);
+    } else {
+      // All players have peeked, start the game
+      setPeekingPhase(false);
+      setCurrentPlayerIndex(0);
+      setGamePhase('draw');
+    }
+  };
+
   // Handle swap confirmation
   const handleSwap = () => {
     if (gamePhase !== 'swap' || selectedCardIndex === null || !drawnCard) return;
@@ -150,22 +209,31 @@ const Game = () => {
     const newHand = [...currentPlayer.hand];
     const swappedCard = newHand[selectedCardIndex];
 
-    // Swap the card
-    newHand[selectedCardIndex] = { ...drawnCard, isRevealed: true };
+    // Swap the card - keep it face down (not revealed)
+    newHand[selectedCardIndex] = { ...drawnCard, isRevealed: false };
 
     // Update player hand
     const updatedPlayers = [...players];
     updatedPlayers[currentPlayerIndex].hand = newHand;
     setPlayers(updatedPlayers);
 
-    // Check for special card effect
-    const effect = handleSpecialCard(swappedCard);
-    if (effect) {
-      setSpecialCardEffect(effect);
-    }
-
     // Discard the swapped card
     setDiscardPile([...discardPile, swappedCard]);
+
+    // Check for power cards (Jack or Queen)
+    if (drawnCard.rank === 'J') {
+      // Jack power: swap any two cards in the pot
+      setPowerCardActive('jack');
+      setJackSwapSelection({ playerIndex: null, cardIndex: null, count: 0 });
+      setGamePhase('power-jack');
+      return;
+    } else if (drawnCard.rank === 'Q') {
+      // Queen power: peek at any one card in the pot
+      setPowerCardActive('queen');
+      setQueenPeekCard(null);
+      setGamePhase('power-queen');
+      return;
+    }
 
     // Check if same rank (can discard immediately - doubles rule)
     if (sameRank(drawnCard, swappedCard)) {
@@ -221,6 +289,68 @@ const Game = () => {
     if (newHand.length === 0) {
       endRound();
     }
+  };
+
+  // Handle Jack power card - swap any two cards
+  const handleJackCardSelect = (playerIndex, cardIndex) => {
+    if (gamePhase !== 'power-jack') return;
+
+    const selection = jackSwapSelection;
+
+    if (selection.count === 0) {
+      // First card selected
+      setJackSwapSelection({ playerIndex, cardIndex, count: 1 });
+    } else if (selection.count === 1) {
+      // Second card selected - perform swap
+      const updatedPlayers = [...players];
+
+      // Get both cards
+      const card1 = updatedPlayers[selection.playerIndex].hand[selection.cardIndex];
+      const card2 = updatedPlayers[playerIndex].hand[cardIndex];
+
+      // Swap them
+      updatedPlayers[selection.playerIndex].hand[selection.cardIndex] = card2;
+      updatedPlayers[playerIndex].hand[cardIndex] = card1;
+
+      setPlayers(updatedPlayers);
+
+      // Reset and continue
+      setPowerCardActive(null);
+      setJackSwapSelection({ playerIndex: null, cardIndex: null, count: 0 });
+      setGamePhase('discard');
+    }
+  };
+
+  // Handle Queen power card - peek at any one card
+  const handleQueenCardPeek = (playerIndex, cardIndex) => {
+    if (gamePhase !== 'power-queen') return;
+
+    // Temporarily reveal the card
+    setPlayers(prevPlayers => {
+      const updatedPlayers = [...prevPlayers];
+      const newHand = [...updatedPlayers[playerIndex].hand];
+      newHand[cardIndex] = { ...newHand[cardIndex], isRevealed: true };
+      updatedPlayers[playerIndex].hand = newHand;
+      return updatedPlayers;
+    });
+
+    setQueenPeekCard({ playerIndex, cardIndex });
+
+    // Hide the card after 3 seconds
+    setTimeout(() => {
+      setPlayers(prevPlayers => {
+        const updatedPlayers = [...prevPlayers];
+        const newHand = [...updatedPlayers[playerIndex].hand];
+        newHand[cardIndex] = { ...newHand[cardIndex], isRevealed: false };
+        updatedPlayers[playerIndex].hand = newHand;
+        return updatedPlayers;
+      });
+
+      // Reset and continue
+      setPowerCardActive(null);
+      setQueenPeekCard(null);
+      setGamePhase('discard');
+    }, 3000);
   };
 
   // End turn
@@ -470,6 +600,21 @@ const Game = () => {
                   player={player}
                   cards={player.hand}
                   isActive={false}
+                  onCardClick={(cardIndex) => {
+                    // Handle power card interactions
+                    if (gamePhase === 'power-jack') {
+                      handleJackCardSelect(index, cardIndex);
+                    } else if (gamePhase === 'power-queen') {
+                      handleQueenCardPeek(index, cardIndex);
+                    }
+                  }}
+                  selectedCardIndex={
+                    gamePhase === 'power-jack' &&
+                      jackSwapSelection.count === 1 &&
+                      jackSwapSelection.playerIndex === index
+                      ? jackSwapSelection.cardIndex
+                      : null
+                  }
                 />
               );
             })}
@@ -523,32 +668,83 @@ const Game = () => {
                   cards={currentPlayer.hand}
                   isActive={true}
                   onCardClick={(index) => {
-                    const card = currentPlayer.hand[index];
-                    if (card && card.isRevealed && discardPile.length > 0) {
-                      const topDiscard = discardPile[discardPile.length - 1];
-                      if (topDiscard && sameRank(card, topDiscard)) {
-                        handleDiscardMatching(index);
-                        return;
-                      }
+                    // Handle peeking phase
+                    if (gamePhase === 'peek') {
+                      handlePeekCard(index);
+                      return;
                     }
+
+                    // Handle power card phases
+                    if (gamePhase === 'power-jack') {
+                      handleJackCardSelect(currentPlayerIndex, index);
+                      return;
+                    }
+
+                    if (gamePhase === 'power-queen') {
+                      handleQueenCardPeek(currentPlayerIndex, index);
+                      return;
+                    }
+
+                    // During swap phase, allow selecting cards to swap
                     if (gamePhase === 'swap') {
                       handleCardSelect(index);
                     }
                   }}
-                  selectedCardIndex={selectedCardIndex}
+                  selectedCardIndex={
+                    gamePhase === 'power-jack' &&
+                      jackSwapSelection.count === 1 &&
+                      jackSwapSelection.playerIndex === currentPlayerIndex
+                      ? jackSwapSelection.cardIndex
+                      : selectedCardIndex
+                  }
                 />
 
-                {/* Matching Card Hint */}
-                {discardPile.length > 0 && discardPile[discardPile.length - 1] && currentPlayer.hand.some(card =>
-                  card && card.isRevealed && sameRank(card, discardPile[discardPile.length - 1])
-                ) && (
-                    <UICard className="mt-4 p-4 text-center border-white/20 bg-white/5">
-                      <p className="text-sm text-white font-semibold flex items-center justify-center space-x-2">
-                        <span className="text-lg">⚡</span>
-                        <span>You have a matching card! Click it to discard immediately.</span>
-                      </p>
-                    </UICard>
-                  )}
+                {/* Peeking Instructions */}
+                {gamePhase === 'peek' && (
+                  <UICard className="mt-4 p-4 text-center border-white/20 bg-white/5">
+                    <p className="text-sm text-white font-semibold mb-2">
+                      👀 Peek at 2 cards ({(peekCounts[currentPlayerIndex] || 0)}/2)
+                    </p>
+                    <p className="text-xs text-gray-400 mb-3">
+                      Click on any 2 cards to view them. You can only do this once!
+                    </p>
+                    {(peekCounts[currentPlayerIndex] || 0) >= 2 && (
+                      <Button
+                        onClick={handleFinishPeeking}
+                        variant="default"
+                        size="sm"
+                      >
+                        {currentPlayerIndex < players.length - 1 ? 'Next Player' : 'Start Game'}
+                      </Button>
+                    )}
+                  </UICard>
+                )}
+
+                {/* Jack Power Card Instructions */}
+                {gamePhase === 'power-jack' && (
+                  <UICard className="mt-4 p-4 text-center border-white/20 bg-white/5">
+                    <p className="text-sm text-white font-semibold mb-2">
+                      🃏 Jack Power: Swap Two Cards
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {jackSwapSelection.count === 0
+                        ? 'Click on the first card to swap (from any player)'
+                        : 'Click on the second card to complete the swap'}
+                    </p>
+                  </UICard>
+                )}
+
+                {/* Queen Power Card Instructions */}
+                {gamePhase === 'power-queen' && (
+                  <UICard className="mt-4 p-4 text-center border-white/20 bg-white/5">
+                    <p className="text-sm text-white font-semibold mb-2">
+                      👑 Queen Power: Peek at One Card
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Click on any card (from any player) to peek at it for 3 seconds
+                    </p>
+                  </UICard>
+                )}
               </div>
             )}
 
