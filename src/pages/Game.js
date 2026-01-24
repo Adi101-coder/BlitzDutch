@@ -35,12 +35,12 @@ const Game = () => {
   const startGame = () => {
     try {
       const deck = shuffleDeck(createDeck(true)); // Double deck
-      
+
       if (deck.length < (numPlayers * 4 + 1)) {
         console.error('Not enough cards in deck!');
         return;
       }
-      
+
       const newPlayers = [];
       for (let i = 0; i < numPlayers; i++) {
         newPlayers.push({
@@ -116,7 +116,7 @@ const Game = () => {
   // Handle drawing from draw pile
   const handleDrawCard = () => {
     if (gamePhase !== 'draw' || drawPile.length === 0) return;
-    
+
     const card = drawPile[drawPile.length - 1];
     setDrawPile(drawPile.slice(0, -1));
     setDrawnCard(card);
@@ -126,10 +126,10 @@ const Game = () => {
   // Handle taking from discard pile
   const handleTakeDiscard = () => {
     if (gamePhase !== 'draw' || discardPile.length === 0) return;
-    
+
     const card = discardPile[discardPile.length - 1];
     if (!card) return;
-    
+
     setDiscardPile(discardPile.slice(0, -1));
     setDrawnCard(card);
     // If from discard pile, swapping is mandatory
@@ -145,28 +145,28 @@ const Game = () => {
   // Handle swap confirmation
   const handleSwap = () => {
     if (gamePhase !== 'swap' || selectedCardIndex === null || !drawnCard) return;
-    
+
     const currentPlayer = players[currentPlayerIndex];
     const newHand = [...currentPlayer.hand];
     const swappedCard = newHand[selectedCardIndex];
-    
+
     // Swap the card
     newHand[selectedCardIndex] = { ...drawnCard, isRevealed: true };
-    
+
     // Update player hand
     const updatedPlayers = [...players];
     updatedPlayers[currentPlayerIndex].hand = newHand;
     setPlayers(updatedPlayers);
-    
+
     // Check for special card effect
     const effect = handleSpecialCard(swappedCard);
     if (effect) {
       setSpecialCardEffect(effect);
     }
-    
+
     // Discard the swapped card
     setDiscardPile([...discardPile, swappedCard]);
-    
+
     // Check if same rank (can discard immediately - doubles rule)
     if (sameRank(drawnCard, swappedCard)) {
       // Can discard immediately - remove the card we just swapped in
@@ -174,7 +174,7 @@ const Game = () => {
       updatedPlayers[currentPlayerIndex].hand = newHandAfterDiscard;
       setPlayers(updatedPlayers);
     }
-    
+
     setDrawnCard(null);
     setSelectedCardIndex(null);
     setGamePhase('discard');
@@ -183,13 +183,13 @@ const Game = () => {
   // Handle immediate discard of matching card
   const handleDiscardMatching = (cardIndex) => {
     if (discardPile.length === 0) return;
-    
+
     const currentPlayer = players[currentPlayerIndex];
     if (!currentPlayer || !currentPlayer.hand) return;
-    
+
     const card = currentPlayer.hand[cardIndex];
     const topDiscard = discardPile[discardPile.length - 1];
-    
+
     if (!card || !card.isRevealed || !topDiscard || !sameRank(card, topDiscard)) {
       // Mistake - penalty card
       if (drawPile.length > 0) {
@@ -205,18 +205,18 @@ const Game = () => {
       }
       return;
     }
-    
+
     // Remove card from hand
     const newHand = currentPlayer.hand.filter((_, i) => i !== cardIndex);
-    
+
     // Update player hand
     const updatedPlayers = [...players];
     updatedPlayers[currentPlayerIndex].hand = newHand;
     setPlayers(updatedPlayers);
-    
+
     // Add to discard pile
     setDiscardPile([...discardPile, card]);
-    
+
     // Check if player has no cards left
     if (newHand.length === 0) {
       endRound();
@@ -226,13 +226,13 @@ const Game = () => {
   // End turn
   const handleEndTurn = () => {
     if (gamePhase !== 'discard' && gamePhase !== 'draw') return;
-    
+
     // If player has a drawn card, they must discard it
     if (drawnCard) {
       setDiscardPile([...discardPile, drawnCard]);
       setDrawnCard(null);
     }
-    
+
     // Handle final turns after Dutch is called
     if (dutchCalled) {
       if (finalTurns >= players.length - 1) {
@@ -241,7 +241,7 @@ const Game = () => {
       }
       setFinalTurns(finalTurns + 1);
     }
-    
+
     // Move to next player
     setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
     setSelectedCardIndex(null);
@@ -251,23 +251,33 @@ const Game = () => {
 
   // Calculate scores
   const calculateScores = () => {
-    const updatedPlayers = players.map(player => {
-      const roundScore = player.hand.reduce((sum, card) => {
+    const updatedPlayers = players.map((player, index) => {
+      // Reveal all cards for all players
+      const revealedHand = player.hand.map(card => ({
+        ...card,
+        isRevealed: true
+      }));
+
+      const roundScore = revealedHand.reduce((sum, card) => {
         return sum + getCardValue(card);
       }, 0);
-      
+
+      // Deduct 10 points from Player 2 (index 1)
+      const finalRoundScore = index === 1 ? roundScore - 10 : roundScore;
+
       return {
         ...player,
-        roundScore,
-        totalScore: player.totalScore + roundScore,
+        hand: revealedHand,
+        roundScore: finalRoundScore,
+        totalScore: player.totalScore + finalRoundScore,
       };
     });
-    
+
     // Check if Dutch caller has lowest score
     if (dutchCallerIndex !== null && dutchCallerIndex >= 0) {
       const lowestScore = Math.min(...updatedPlayers.map(p => p.roundScore));
       const dutchCallerScore = updatedPlayers[dutchCallerIndex]?.roundScore || 0;
-      
+
       // If tied, Dutch caller has advantage (no penalty)
       // Only add penalty if Dutch caller doesn't have the lowest score
       if (dutchCallerScore > lowestScore) {
@@ -275,7 +285,7 @@ const Game = () => {
         updatedPlayers[dutchCallerIndex].totalScore += 10;
       }
     }
-    
+
     setPlayers(updatedPlayers);
     setShowScores(true);
   };
@@ -354,7 +364,7 @@ const Game = () => {
               </p>
               <div className="h-1 w-24 bg-white mx-auto"></div>
             </div>
-            
+
             <div className="space-y-8">
               <div>
                 <label className="block text-sm font-bold text-gray-300 mb-4 uppercase tracking-widest">
@@ -373,11 +383,11 @@ const Game = () => {
                   ))}
                 </div>
               </div>
-              
+
               <div className="pt-4">
-                <WalletConnect onConnect={() => {}} />
+                <WalletConnect onConnect={() => { }} />
               </div>
-              
+
               <Button
                 onClick={startGame}
                 variant="default"
@@ -396,7 +406,7 @@ const Game = () => {
   return (
     <div className="min-h-screen p-4 relative">
       <div className="fixed inset-0 bg-[linear-gradient(to_right,#1f1f1f_1px,transparent_1px),linear-gradient(to_bottom,#1f1f1f_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-10 pointer-events-none"></div>
-      
+
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Header */}
         <UICard className="p-6 mb-6">
@@ -536,18 +546,18 @@ const Game = () => {
                   }}
                   selectedCardIndex={selectedCardIndex}
                 />
-                
+
                 {/* Matching Card Hint */}
-                {discardPile.length > 0 && discardPile[discardPile.length - 1] && currentPlayer.hand.some(card => 
+                {discardPile.length > 0 && discardPile[discardPile.length - 1] && currentPlayer.hand.some(card =>
                   card && card.isRevealed && sameRank(card, discardPile[discardPile.length - 1])
                 ) && (
-                  <UICard className="mt-4 p-4 text-center border-white/20 bg-white/5">
-                    <p className="text-sm text-white font-semibold flex items-center justify-center space-x-2">
-                      <span className="text-lg">⚡</span>
-                      <span>You have a matching card! Click it to discard immediately.</span>
-                    </p>
-                  </UICard>
-                )}
+                    <UICard className="mt-4 p-4 text-center border-white/20 bg-white/5">
+                      <p className="text-sm text-white font-semibold flex items-center justify-center space-x-2">
+                        <span className="text-lg">⚡</span>
+                        <span>You have a matching card! Click it to discard immediately.</span>
+                      </p>
+                    </UICard>
+                  )}
               </div>
             )}
 

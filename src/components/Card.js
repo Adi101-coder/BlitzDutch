@@ -48,13 +48,13 @@ const Card = ({ card, isFaceDown = false, isSelected = false, onClick, className
       }}
     >
       <div className="w-full h-full flex flex-col justify-between p-3 relative overflow-hidden rounded-lg">
-        <div className={`text-lg font-bold ${isRed ? 'text-black' : 'text-black'}`}>
+        <div className={`text-lg font-bold ${isRed ? 'text-red-600' : 'text-black'}`}>
           {card.rank}
         </div>
-        <div className={`text-4xl text-center ${isRed ? 'text-black' : 'text-black'}`}>
+        <div className={`text-4xl text-center ${isRed ? 'text-red-600' : 'text-black'}`}>
           {suitSymbol}
         </div>
-        <div className={`text-lg font-bold ${isRed ? 'text-black' : 'text-black'} transform rotate-180`}>
+        <div className={`text-lg font-bold ${isRed ? 'text-red-600' : 'text-black'} transform rotate-180`}>
           {card.rank}
         </div>
         {/* Pattern overlay for red suits */}
