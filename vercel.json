@@ -2,20 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "build",
   "regions": ["iad1"],
-  "env": {
-    "REACT_APP_SERVER_URL": "@react_app_server_url"
-  },
-  "functions": {
-    "server/index.js": {
-      "memory": 1024,
-      "maxDuration": 60
-    }
-  },
   "rewrites": [
-    {
-      "source": "/socket.io(.*)",
-      "destination": "/api/socket$1"
-    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
