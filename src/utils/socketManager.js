@@ -4,8 +4,8 @@ let socket = null;
 
 const getServerURL = () => {
   if (process.env.NODE_ENV === 'production') {
-    // In production, connect to the same origin (Vercel handles routing)
-    return window.location.origin;
+    // In production, use Render backend URL
+    return process.env.REACT_APP_BACKEND_URL || window.location.origin;
   }
   return 'http://localhost:5000';
 };
