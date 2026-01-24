@@ -2,7 +2,15 @@ import io from 'socket.io-client';
 
 let socket = null;
 
-export const initializeSocket = (serverURL = 'http://localhost:5000') => {
+const getServerURL = () => {
+  if (process.env.NODE_ENV === 'production') {
+    // In production, connect to the same origin (Vercel handles routing)
+    return window.location.origin;
+  }
+  return 'http://localhost:5000';
+};
+
+export const initializeSocket = (serverURL = getServerURL()) => {
   if (socket) return socket;
   
   socket = io(serverURL, {

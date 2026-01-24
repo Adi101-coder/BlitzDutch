@@ -37,6 +37,7 @@ const Game = () => {
       const deck = shuffleDeck(createDeck(true)); // Double deck
       
       if (deck.length < (numPlayers * 4 + 1)) {
+        console.error('Not enough cards in deck!');
         return;
       }
       
@@ -71,6 +72,7 @@ const Game = () => {
       // Place first card on discard pile
       const firstDiscard = deck.pop();
       if (!firstDiscard) {
+        console.error('No card available for discard pile!');
         return;
       }
       const remainingDeck = deck;
@@ -89,7 +91,7 @@ const Game = () => {
       setSpecialCardEffect(null);
       setGameStarted(true);
     } catch (error) {
-      // Game initialization error handled silently
+      console.error('Error starting game:', error);
     }
   };
 

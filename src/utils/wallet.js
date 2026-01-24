@@ -28,6 +28,7 @@ export const connectPhantom = async () => {
       };
     }
   } catch (err) {
+    console.error('Phantom connection error:', err);
     return { 
       connected: false, 
       error: err.message || 'Failed to connect to Phantom. Make sure you have the extension installed.' 
@@ -67,6 +68,7 @@ export const connectMetaMask = async () => {
       chainId: chainId
     };
   } catch (err) {
+    console.error('MetaMask connection error:', err);
     return { 
       connected: false, 
       error: err.message || 'Failed to connect to MetaMask' 
@@ -142,6 +144,7 @@ export const getWalletBalance = async (wallet) => {
       return (parseInt(balance, 16) / 1e18).toFixed(4); // Convert wei to ETH
     }
   } catch (err) {
+    console.error('Error fetching balance:', err);
     return null;
   }
 };

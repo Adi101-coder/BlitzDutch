@@ -21,6 +21,7 @@ const Navbar = () => {
       try {
         setWallet(JSON.parse(savedWallet));
       } catch (e) {
+        console.error('Failed to load wallet from storage:', e);
         localStorage.removeItem('connectedWallet');
       }
     }
