@@ -485,24 +485,18 @@ const Game = () => {
               canTakeDiscard={canTakeDiscard}
             />
 
-            {/* Drawn Card Display */}
-            {drawnCard && (
-              <UICard className="mt-8 p-6 flex flex-col items-center space-y-4">
-                <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">Drawn Card</div>
-                <Card card={drawnCard} isFaceDown={false} />
-                {gamePhase === 'swap' && (
-                  <div className="text-center space-y-3">
-                    <p className="text-sm text-gray-400 font-medium">Select a card to swap</p>
-                    <Button
-                      onClick={handleSwap}
-                      disabled={selectedCardIndex === null}
-                      variant={selectedCardIndex !== null ? 'default' : 'ghost'}
-                    >
-                      Swap Card
-                    </Button>
-                  </div>
-                )}
-              </UICard>
+            {/* Swap Button - Below Game Center */}
+            {gamePhase === 'swap' && drawnCard && (
+              <div className="mt-6">
+                <Button
+                  onClick={handleSwap}
+                  disabled={selectedCardIndex === null}
+                  variant={selectedCardIndex !== null ? 'default' : 'ghost'}
+                  size="lg"
+                >
+                  Swap Card
+                </Button>
+              </div>
             )}
 
             {/* Action Buttons */}
@@ -523,7 +517,7 @@ const Game = () => {
           <div className="space-y-4">
             {/* Current Player Hand */}
             {currentPlayer && (
-              <div className="mt-32">
+              <div>
                 <PlayerHand
                   player={currentPlayer}
                   cards={currentPlayer.hand}
@@ -556,6 +550,17 @@ const Game = () => {
                     </UICard>
                   )}
               </div>
+            )}
+
+            {/* Drawn Card Display - Below Current Player */}
+            {drawnCard && (
+              <UICard className="p-6 flex flex-col items-center space-y-4">
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">Drawn Card</div>
+                <Card card={drawnCard} isFaceDown={false} />
+                {gamePhase === 'swap' && (
+                  <p className="text-sm text-gray-400 font-medium text-center">Select a card to swap</p>
+                )}
+              </UICard>
             )}
 
             {/* Scoreboard */}
