@@ -134,6 +134,17 @@ const Navbar = () => {
             >
               Play
             </Link>
+            <Link
+              to="/payment"
+              className={cn(
+                'px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200',
+                isActive('/payment') 
+                  ? 'bg-white text-black' 
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              )}
+            >
+              Payment
+            </Link>
           </div>
 
           {/* Wallet & Mobile Menu */}
@@ -292,6 +303,16 @@ const Navbar = () => {
                 )}
               >
                 Play
+              </Link>
+              <Link
+                to="/payment"
+                onClick={() => setShowMenu(false)}
+                className={cn(
+                  'px-4 py-2 rounded-lg text-sm font-semibold transition-all',
+                  isActive('/payment') ? 'bg-white text-black' : 'text-gray-400'
+                )}
+              >
+                Payment
               </Link>
             </div>
           </div>
