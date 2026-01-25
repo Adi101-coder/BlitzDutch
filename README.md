@@ -28,6 +28,35 @@ npm start
 
 The app will open at [http://localhost:3000](http://localhost:3000)
 
+## Backend Setup
+
+### WebSocket Server
+
+The game uses a WebSocket server (Socket.IO) to handle multiplayer functionality, real-time game state synchronization, and player communication.
+
+### Running the Backend
+
+Start the backend server:
+
+```bash
+npm run server
+```
+
+The backend server will run on [http://localhost:5000](http://localhost:5000) by default.
+
+**Environment Variables:**
+- `PORT` - Backend server port (default: 5000)
+- `FRONTEND_URL` - Frontend URL for CORS configuration
+- `VERCEL_URL` - Vercel URL for production deployment
+
+### Backend Features
+
+- Room-based multiplayer lobbies
+- Real-time game state broadcasting via WebSocket
+- Player connection/disconnection handling
+- Game event management (draw, swap, discard, Dutch calls)
+- Automatic room cleanup when empty
+
 ## How to Play
 
 1. **Setup**: Choose the number of players (2-4) and click "Start Game"
@@ -69,5 +98,13 @@ src/
   App.js             - Main game component with logic
   index.js           - App entry point
   index.css          - Global styles and animations
+
+server/
+  index.js           - Socket.IO WebSocket server
+                      - Handles multiplayer rooms
+                      - Manages real-time game state
+
+api/
+  socket.js          - Vercel serverless function wrapper for Socket.IO
 ```
 
