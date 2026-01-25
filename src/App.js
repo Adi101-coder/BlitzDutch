@@ -6,6 +6,7 @@ import Landing from './pages/Landing';
 import Rules from './pages/Rules';
 import Game from './pages/Game';
 import Lobby from './pages/Lobby';
+import PaymentDemo from './pages/PaymentDemo';
 import { MultiplayerProvider } from './context/MultiplayerContext';
 
 const App = () => {
@@ -20,6 +21,7 @@ const App = () => {
             <Route path="/rules" element={<Rules />} />
             <Route path="/game" element={<Game />} />
             <Route path="/lobby" element={<Lobby />} />
+            <Route path="/payment" element={<PaymentDemo />} />
           </Routes>
         </div>
       </div>
