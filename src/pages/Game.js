@@ -32,11 +32,109 @@ const Game = () => {
   const [specialCardEffect, setSpecialCardEffect] = useState(null);
   const [peekCounts, setPeekCounts] = useState({}); // Track how many cards each player has peeked
   const [peekingPhase, setPeekingPhase] = useState(true); // Track if we're in initial peeking phase
+  
+  // AI mode
+  const [vsComputer, setVsComputer] = useState(false); // Track if playing against computer
+  const [aiThinking, setAiThinking] = useState(false); // Track if AI is making a move
 
   // Power card states
   const [powerCardActive, setPowerCardActive] = useState(null); // 'jack' or 'queen'
   const [jackSwapSelection, setJackSwapSelection] = useState({ playerIndex: null, cardIndex: null, count: 0 }); // Track Jack swap selections
   const [queenPeekCard, setQueenPeekCard] = useState(null); // Track which card Queen is peeking at
+
+  // AI Logic - Computer plays automatically
+  React.useEffect(() => {
+    if (!vsComputer || !gameStarted || currentPlayerIndex !== 1 || showScores || aiThinking) return;
+    
+    const makeAIMove = async () => {
+      setAiThinking(true);
+      
+      // AI handles peeking phase
+      if (gamePhase === 'peek') {
+        const peekCount = peekCounts[1] || 0;
+        if (peekCount < 2) {
+          await new Promise(resolve => setTimeout(resolve, 800));
+          setPeekCounts(prev => ({ ...prev, 1: peekCount + 1 }));
+          if (peekCount + 1 >= 2) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            setCurrentPlayerIndex(0);
+            setGamePhase('draw');
+          }
+        }
+        setAiThinking(false);
+        return;
+      }
+      
+      // AI draws a card
+      if (gamePhase === 'draw') {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const drawFromDiscard = Math.random() < 0.25 && discardPile.length > 0;
+        
+        if (drawFromDiscard) {
+          const card = discardPile[discardPile.length - 1];
+          setDiscardPile(discardPile.slice(0, -1));
+          setDrawnCard(card);
+        } else if (drawPile.length > 0) {
+          const card = drawPile[drawPile.length - 1];
+          setDrawPile(drawPile.slice(0, -1));
+          setDrawnCard(card);
+        }
+        setGamePhase('swap');
+        setAiThinking(false);
+        return;
+      }
+      
+      // AI swaps a card
+      if (gamePhase === 'swap' && drawnCard) {
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        const randomIndex = Math.floor(Math.random() * players[1].hand.length);
+        const newHand = [...players[1].hand];
+        const swappedCard = newHand[randomIndex];
+        
+        newHand[randomIndex] = { ...drawnCard, isRevealed: false };
+        
+        const updatedPlayers = [...players];
+        updatedPlayers[1].hand = newHand;
+        setPlayers(updatedPlayers);
+        
+        setDiscardPile(prev => [...prev, swappedCard]);
+        setDrawnCard(null);
+        setGamePhase('discard');
+        
+        // AI might call Dutch (15% chance)
+        if (Math.random() < 0.15 && !dutchCalled) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          setDutchCalled(true);
+          setDutchCallerIndex(1);
+          setFinalTurns(0);
+        }
+        
+        setAiThinking(false);
+        return;
+      }
+      
+      // AI ends turn
+      if (gamePhase === 'discard') {
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        if (dutchCalled && finalTurns >= 1) {
+          endRound();
+          setAiThinking(false);
+          return;
+        }
+        
+        if (dutchCalled) {
+          setFinalTurns(finalTurns + 1);
+        }
+        
+        setCurrentPlayerIndex(0);
+        setGamePhase('draw');
+        setAiThinking(false);
+      }
+    };
+    
+    makeAIMove();
+  }, [vsComputer, gameStarted, currentPlayerIndex, gamePhase, showScores, aiThinking]);
 
   // Initialize game
   const startGame = () => {
@@ -51,7 +149,7 @@ const Game = () => {
       const newPlayers = [];
       for (let i = 0; i < numPlayers; i++) {
         newPlayers.push({
-          name: `Player ${i + 1}`,
+          name: vsComputer && i === 1 ? 'Computer 🤖' : `Player ${i + 1}`,
           hand: [],
           totalScore: 0,
           roundScore: 0,
@@ -495,21 +593,45 @@ const Game = () => {
             <div className="space-y-8">
               <div>
                 <label className="block text-sm font-bold text-gray-300 mb-4 uppercase tracking-widest">
-                  Number of Players
+                  Game Mode
                 </label>
-                <div className="grid grid-cols-5 gap-3">
-                  {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                    <Button
-                      key={num}
-                      onClick={() => setNumPlayers(num)}
-                      variant={numPlayers === num ? 'default' : 'secondary'}
-                      className="aspect-square"
-                    >
-                      {num}
-                    </Button>
-                  ))}
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    onClick={() => { setVsComputer(false); setNumPlayers(2); }}
+                    variant={!vsComputer ? 'default' : 'secondary'}
+                    className="py-4"
+                  >
+                    👥 Local Multiplayer
+                  </Button>
+                  <Button
+                    onClick={() => { setVsComputer(true); setNumPlayers(2); }}
+                    variant={vsComputer ? 'default' : 'secondary'}
+                    className="py-4"
+                  >
+                    🤖 vs Computer
+                  </Button>
                 </div>
               </div>
+
+              {!vsComputer && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-300 mb-4 uppercase tracking-widest">
+                    Number of Players
+                  </label>
+                  <div className="grid grid-cols-5 gap-3">
+                    {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                      <Button
+                        key={num}
+                        onClick={() => setNumPlayers(num)}
+                        variant={numPlayers === num ? 'default' : 'secondary'}
+                        className="aspect-square"
+                      >
+                        {num}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="pt-4">
                 <WalletConnect onConnect={() => { }} />
@@ -631,7 +753,7 @@ const Game = () => {
             />
 
             {/* Swap Button - Below Game Center */}
-            {gamePhase === 'swap' && drawnCard && (
+            {gamePhase === 'swap' && drawnCard && !aiThinking && (
               <div className="mt-6">
                 <Button
                   onClick={handleSwap}
@@ -644,8 +766,22 @@ const Game = () => {
               </div>
             )}
 
+            {/* AI Thinking Indicator */}
+            {aiThinking && vsComputer && (
+              <div className="mt-6">
+                <UICard className="p-4 text-center border-white/20 bg-white/5">
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                  <p className="text-sm text-white font-semibold mt-2">Computer is thinking...</p>
+                </UICard>
+              </div>
+            )}
+
             {/* Action Buttons */}
-            {gamePhase === 'discard' && (
+            {gamePhase === 'discard' && !aiThinking && (
               <div className="mt-6">
                 <Button
                   onClick={handleEndTurn}
