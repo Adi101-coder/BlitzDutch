@@ -14,7 +14,7 @@ A fully playable MVP of the Dutch card game built with React and Tailwind CSS.
 - Beautiful, responsive UI with smooth card flip animations
 - Scoreboard tracking round and total scores
 
-## Installation
+
 
 1. Install dependencies:
 ```bash

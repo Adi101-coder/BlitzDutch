@@ -1,370 +1,198 @@
 const express = require('express');
 const http = require('http');
-const socketIO = require('socket.io');
+const { Server } = require('socket.io');
 const cors = require('cors');
-const { v4: uuidv4 } = require('uuid');
 
 const app = express();
+app.use(cors());
+
 const server = http.createServer(app);
-
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:5000',
-  process.env.FRONTEND_URL,
-  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
-].filter(Boolean);
-
-const io = socketIO(server, {
+const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
-    methods: ['GET', 'POST'],
-    credentials: true,
-  },
+    origin: process.env.NODE_ENV === 'production' 
+      ? ["https://your-app.vercel.app", "https://blitz-dutch.vercel.app"]
+      : "http://localhost:3000",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
 });
 
-app.use(cors());
-app.use(express.json());
-
-// Game rooms storage
+// Store active game rooms
 const rooms = new Map();
-const playerSockets = new Map();
 
-// Room structure:
-// {
-//   roomCode: string,
-//   host: string,
-//   players: [{ id, name, socket, score, hand }],
-//   gameState: { started, phase, currentPlayerIndex, drawPile, discardPile },
-//   maxPlayers: number
-// }
+// Helper function to generate room code
+function generateRoomCode() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
 
-// Helper functions
-const createRoom = (playerName, numPlayers) => {
-  const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-  const playerId = uuidv4();
-  
-  const room = {
-    roomCode,
-    host: playerId,
-    maxPlayers: numPlayers,
-    players: [
-      {
-        id: playerId,
-        name: playerName,
-        socketId: null,
-        score: 0,
-        roundScore: 0,
-        hand: [],
-      },
-    ],
-    gameState: {
-      started: false,
-      phase: 'waiting',
-      currentPlayerIndex: 0,
-      drawPile: [],
-      discardPile: [],
-    },
-  };
-
-  rooms.set(roomCode, room);
-  return { roomCode, playerId, room };
-};
-
-const joinRoom = (roomCode, playerName) => {
-  const room = rooms.get(roomCode);
-  if (!room) {
-    return { success: false, message: 'Room not found' };
-  }
-
-  if (room.players.length >= room.maxPlayers) {
-    return { success: false, message: 'Room is full' };
-  }
-
-  const playerId = uuidv4();
-  room.players.push({
-    id: playerId,
-    name: playerName,
-    socketId: null,
-    score: 0,
-    roundScore: 0,
-    hand: [],
-  });
-
-  return { success: true, roomCode, playerId, room };
-};
-
-const getRoom = (roomCode) => {
-  return rooms.get(roomCode);
-};
-
-const removePlayer = (roomCode, playerId) => {
-  const room = getRoom(roomCode);
-  if (!room) return;
-
-  const playerIndex = room.players.findIndex((p) => p.id === playerId);
-  if (playerIndex !== -1) {
-    room.players.splice(playerIndex, 1);
-  }
-
-  if (room.players.length === 0) {
-    rooms.delete(roomCode);
-  }
-};
-
-// Socket.IO event handlers
+// Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
-  socket.on('create_room', (data, callback) => {
-    try {
-      const { playerName, numPlayers } = data;
-      const { roomCode, playerId, room } = createRoom(playerName, numPlayers);
+  // Create a new room
+  socket.on('create-room', (playerName, callback) => {
+    const roomCode = generateRoomCode();
+    const room = {
+      code: roomCode,
+      host: socket.id,
+      players: [{
+        id: socket.id,
+        name: playerName || 'Player 1',
+        ready: false
+      }],
+      gameState: null,
+      started: false
+    };
 
-      playerSockets.set(socket.id, { roomCode, playerId });
-      socket.join(roomCode);
+    rooms.set(roomCode, room);
+    socket.join(roomCode);
+    
+    console.log(`Room created: ${roomCode} by ${socket.id}`);
+    callback({ success: true, roomCode, room });
+  });
 
-      const players = room.players.map((p) => ({
-        id: p.id,
-        name: p.name,
-        score: p.score,
-      }));
+  // Join existing room
+  socket.on('join-room', (roomCode, playerName, callback) => {
+    const room = rooms.get(roomCode);
+    
+    if (!room) {
+      callback({ success: false, error: 'Room not found' });
+      return;
+    }
 
-      callback({
-        success: true,
-        roomCode,
-        playerId,
-        players,
-      });
+    if (room.started) {
+      callback({ success: false, error: 'Game already started' });
+      return;
+    }
 
-      socket.emit('room_created', {
-        roomCode,
-        players,
-      });
+    if (room.players.length >= 10) {
+      callback({ success: false, error: 'Room is full' });
+      return;
+    }
 
-      console.log(`Room ${roomCode} created by ${playerName}`);
-    } catch (error) {
-      console.error('Create room error:', error);
-      callback({ success: false, message: error.message });
+    const player = {
+      id: socket.id,
+      name: playerName || `Player ${room.players.length + 1}`,
+      ready: false
+    };
+
+    room.players.push(player);
+    socket.join(roomCode);
+
+    console.log(`${socket.id} joined room: ${roomCode}`);
+    
+    // Notify all players in room
+    io.to(roomCode).emit('room-updated', room);
+    callback({ success: true, room });
+  });
+
+  // Leave room
+  socket.on('leave-room', (roomCode) => {
+    const room = rooms.get(roomCode);
+    if (!room) return;
+
+    room.players = room.players.filter(p => p.id !== socket.id);
+    socket.leave(roomCode);
+
+    if (room.players.length === 0) {
+      rooms.delete(roomCode);
+      console.log(`Room ${roomCode} deleted (empty)`);
+    } else {
+      // If host left, assign new host
+      if (room.host === socket.id) {
+        room.host = room.players[0].id;
+      }
+      io.to(roomCode).emit('room-updated', room);
     }
   });
 
-  socket.on('join_room', (data, callback) => {
-    try {
-      const { roomCode, playerName } = data;
-      const result = joinRoom(roomCode, playerName);
+  // Player ready toggle
+  socket.on('player-ready', (roomCode) => {
+    const room = rooms.get(roomCode);
+    if (!room) return;
 
-      if (!result.success) {
-        callback(result);
-        return;
-      }
-
-      const { playerId, room } = result;
-      playerSockets.set(socket.id, { roomCode, playerId });
-      socket.join(roomCode);
-
-      const players = room.players.map((p) => ({
-        id: p.id,
-        name: p.name,
-        score: p.score,
-      }));
-
-      callback({
-        success: true,
-        roomCode,
-        playerId,
-        players,
-      });
-
-      // Notify other players
-      io.to(roomCode).emit('player_joined', {
-        player: { id: playerId, name: playerName },
-        players,
-      });
-
-      console.log(`${playerName} joined room ${roomCode}`);
-    } catch (error) {
-      console.error('Join room error:', error);
-      callback({ success: false, message: error.message });
+    const player = room.players.find(p => p.id === socket.id);
+    if (player) {
+      player.ready = !player.ready;
+      io.to(roomCode).emit('room-updated', room);
     }
   });
 
-  socket.on('start_game', (data) => {
-    try {
-      const { roomCode } = data;
-      const room = getRoom(roomCode);
+  // Start game
+  socket.on('start-game', (roomCode) => {
+    const room = rooms.get(roomCode);
+    if (!room || room.host !== socket.id) return;
 
-      if (!room) {
-        socket.emit('room_error', { message: 'Room not found' });
-        return;
-      }
-
-      room.gameState.started = true;
-      room.gameState.phase = 'draw';
-
-      // Broadcast game started
-      const players = room.players.map((p) => ({
-        id: p.id,
-        name: p.name,
-        score: p.score,
-      }));
-
-      io.to(roomCode).emit('game_started', {
-        gameState: room.gameState,
-        players,
-      });
-
-      console.log(`Game started in room ${roomCode}`);
-    } catch (error) {
-      console.error('Start game error:', error);
-      socket.emit('room_error', { message: error.message });
-    }
+    room.started = true;
+    io.to(roomCode).emit('game-started', room);
+    console.log(`Game started in room: ${roomCode}`);
   });
 
-  socket.on('make_move', (data) => {
-    try {
-      const { roomCode, ...moveData } = data;
-      const room = getRoom(roomCode);
+  // Game state updates
+  socket.on('game-action', (roomCode, action) => {
+    const room = rooms.get(roomCode);
+    if (!room) return;
 
-      if (!room) {
-        socket.emit('invalid_move', { message: 'Room not found' });
-        return;
-      }
-
-      // Update game state based on move
-      room.gameState.phase = moveData.phase;
-      if (moveData.currentPlayerIndex !== undefined) {
-        room.gameState.currentPlayerIndex = moveData.currentPlayerIndex;
-      }
-
-      // Broadcast updated state
-      io.to(roomCode).emit('game_state_updated', {
-        gameState: room.gameState,
-        players: room.players.map((p) => ({
-          id: p.id,
-          name: p.name,
-          score: p.score,
-          roundScore: p.roundScore,
-        })),
-      });
-
-      console.log(`Move made in room ${roomCode}:`, moveData);
-    } catch (error) {
-      console.error('Make move error:', error);
-      socket.emit('invalid_move', { message: error.message });
-    }
+    // Broadcast action to all players in room
+    socket.to(roomCode).emit('game-action', action);
   });
 
-  socket.on('call_dutch', (data) => {
-    try {
-      const { roomCode } = data;
-      const room = getRoom(roomCode);
+  // Update game state
+  socket.on('update-game-state', (roomCode, gameState) => {
+    const room = rooms.get(roomCode);
+    if (!room) return;
 
-      if (!room) {
-        socket.emit('room_error', { message: 'Room not found' });
-        return;
-      }
-
-      room.gameState.phase = 'dutch_called';
-
-      io.to(roomCode).emit('dutch_called', {
-        gameState: room.gameState,
-      });
-
-      console.log(`Dutch called in room ${roomCode}`);
-    } catch (error) {
-      console.error('Call dutch error:', error);
-      socket.emit('room_error', { message: error.message });
-    }
+    room.gameState = gameState;
+    socket.to(roomCode).emit('game-state-updated', gameState);
   });
 
-  socket.on('leave_room', (data) => {
-    try {
-      const { roomCode } = data;
-      const playerInfo = playerSockets.get(socket.id);
-
-      if (!playerInfo) return;
-
-      const room = getRoom(roomCode);
-      if (!room) return;
-
-      const player = room.players.find((p) => p.id === playerInfo.playerId);
-      const playerName = player?.name || 'Unknown player';
-
-      removePlayer(roomCode, playerInfo.playerId);
-      playerSockets.delete(socket.id);
-      socket.leave(roomCode);
-
-      if (room.players.length > 0) {
-        io.to(roomCode).emit('player_left', {
-          playerName,
-          players: room.players.map((p) => ({
-            id: p.id,
-            name: p.name,
-            score: p.score,
-          })),
-        });
-      }
-
-      console.log(`${playerName} left room ${roomCode}`);
-    } catch (error) {
-      console.error('Leave room error:', error);
-    }
-  });
-
+  // Handle disconnection
   socket.on('disconnect', () => {
-    try {
-      const playerInfo = playerSockets.get(socket.id);
+    console.log('User disconnected:', socket.id);
 
-      if (playerInfo) {
-        const { roomCode, playerId } = playerInfo;
-        const room = getRoom(roomCode);
+    // Remove player from all rooms
+    rooms.forEach((room, roomCode) => {
+      const playerIndex = room.players.findIndex(p => p.id === socket.id);
+      if (playerIndex !== -1) {
+        room.players.splice(playerIndex, 1);
 
-        if (room) {
-          const player = room.players.find((p) => p.id === playerId);
-          const playerName = player?.name || 'Unknown player';
-
-          removePlayer(roomCode, playerId);
-
-          if (room.players.length > 0) {
-            io.to(roomCode).emit('player_left', {
-              playerName,
-              players: room.players.map((p) => ({
-                id: p.id,
-                name: p.name,
-                score: p.score,
-              })),
-            });
+        if (room.players.length === 0) {
+          rooms.delete(roomCode);
+          console.log(`Room ${roomCode} deleted (empty)`);
+        } else {
+          if (room.host === socket.id) {
+            room.host = room.players[0].id;
           }
-
-          console.log(`${playerName} disconnected from room ${roomCode}`);
+          io.to(roomCode).emit('room-updated', room);
+          io.to(roomCode).emit('player-disconnected', socket.id);
         }
-
-        playerSockets.delete(socket.id);
       }
-
-      console.log('User disconnected:', socket.id);
-    } catch (error) {
-      console.error('Disconnect error:', error);
-    }
+    });
   });
 });
 
-// REST API endpoints
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'Server is running' });
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    rooms: rooms.size,
+    timestamp: new Date().toISOString()
+  });
 });
 
-app.get('/api/rooms', (req, res) => {
-  const roomList = Array.from(rooms.values()).map((room) => ({
-    roomCode: room.roomCode,
-    playerCount: room.players.length,
-    maxPlayers: room.maxPlayers,
-    started: room.gameState.started,
-  }));
-  res.json(roomList);
+// Get room info
+app.get('/room/:code', (req, res) => {
+  const room = rooms.get(req.params.code);
+  if (room) {
+    res.json(room);
+  } else {
+    res.status(404).json({ error: 'Room not found' });
+  }
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
+
 server.listen(PORT, () => {
-  console.log(`Game server running on http://localhost:${PORT}`);
+  console.log(`🚀 WebSocket server running on port ${PORT}`);
+  console.log(`📡 Socket.IO ready for connections`);
 });

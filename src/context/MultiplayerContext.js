@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getSocket, setupGameListeners } from '../utils/socketManager';
+import socketService from '../utils/socket';
 
 const MultiplayerContext = createContext(null);
 
@@ -7,7 +7,6 @@ export const MultiplayerProvider = ({ children }) => {
   const [isMultiplayer, setIsMultiplayer] = useState(false);
   const [roomCode, setRoomCode] = useState(null);
   const [players, setPlayers] = useState([]);
-  const [currentPlayerId, setCurrentPlayerId] = useState(null);
   const [gameState, setGameState] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
@@ -15,82 +14,67 @@ export const MultiplayerProvider = ({ children }) => {
 
   // Initialize socket connection
   useEffect(() => {
-    const socket = getSocket();
+    socketService.connect();
     
-    socket.on('connect', () => {
-      setIsConnected(true);
-      setError(null);
-    });
-
-    socket.on('disconnect', () => {
-      setIsConnected(false);
-    });
+    const checkConnection = setInterval(() => {
+      setIsConnected(socketService.isConnected());
+    }, 1000);
 
     return () => {
-      socket.off('connect');
-      socket.off('disconnect');
+      clearInterval(checkConnection);
     };
   }, []);
 
-  const setupGameHandlers = useCallback(() => {
-    const handlers = {
-      onGameStarted: (data) => {
-        setGameState(data.gameState);
-        setPlayers(data.players);
-      },
-      onGameStateUpdated: (data) => {
-        setGameState(data.gameState);
-        setPlayers(data.players);
-      },
-      onPlayerJoined: (data) => {
-        setPlayers(data.players);
-      },
-      onPlayerLeft: (data) => {
-        setPlayers(data.players);
-        setError(`${data.playerName} left the game`);
-      },
-      onTurnChanged: (data) => {
-        setGameState((prev) => ({
-          ...prev,
-          currentPlayerIndex: data.currentPlayerIndex,
-        }));
-      },
-      onRoundEnded: (data) => {
-        setGameState((prev) => ({
-          ...prev,
-          roundScore: data.scores,
-        }));
-      },
-      onInvalidMove: (data) => {
-        setError(data.message);
-      },
-      onRoomError: (data) => {
-        setError(data.message);
-      },
+  // Setup event listeners
+  useEffect(() => {
+    const handleRoomUpdated = (room) => {
+      setPlayers(room.players);
+      if (room.started) {
+        setGameState({ ...room.gameState, started: true });
+      }
     };
 
-    return setupGameListeners(handlers);
+    const handleGameStarted = (room) => {
+      setGameState({ ...room.gameState, started: true });
+    };
+
+    const handleGameStateUpdated = (state) => {
+      setGameState(state);
+    };
+
+    const handlePlayerDisconnected = (playerId) => {
+      setError(`Player ${playerId} disconnected`);
+      setTimeout(() => setError(null), 3000);
+    };
+
+    socketService.onRoomUpdated(handleRoomUpdated);
+    socketService.onGameStarted(handleGameStarted);
+    socketService.onGameStateUpdated(handleGameStateUpdated);
+    socketService.onPlayerDisconnected(handlePlayerDisconnected);
+
+    return () => {
+      socketService.off('room-updated', handleRoomUpdated);
+      socketService.off('game-started', handleGameStarted);
+      socketService.off('game-state-updated', handleGameStateUpdated);
+      socketService.off('player-disconnected', handlePlayerDisconnected);
+    };
   }, []);
 
-  const createRoom = useCallback(async (playerName, numPlayers) => {
+  const createRoom = useCallback(async (playerName) => {
     setLoading(true);
+    setError(null);
+    
     try {
-      const socket = getSocket();
-      const response = await new Promise((resolve) => {
-        socket.emit('create_room', { playerName, numPlayers }, resolve);
-      });
-
+      const response = await socketService.createRoom(playerName);
+      
       if (response.success) {
         setRoomCode(response.roomCode);
-        setPlayers(response.players);
-        setCurrentPlayerId(response.playerId);
+        setPlayers(response.room.players);
         setIsMultiplayer(true);
-        setError(null);
-        setupGameHandlers();
         return response;
       } else {
-        setError(response.message);
-        throw new Error(response.message);
+        setError(response.error);
+        throw new Error(response.error);
       }
     } catch (err) {
       setError(err.message);
@@ -98,27 +82,23 @@ export const MultiplayerProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [setupGameHandlers]);
+  }, []);
 
   const joinRoom = useCallback(async (code, playerName) => {
     setLoading(true);
+    setError(null);
+    
     try {
-      const socket = getSocket();
-      const response = await new Promise((resolve) => {
-        socket.emit('join_room', { roomCode: code, playerName }, resolve);
-      });
-
+      const response = await socketService.joinRoom(code, playerName);
+      
       if (response.success) {
-        setRoomCode(response.roomCode);
-        setPlayers(response.players);
-        setCurrentPlayerId(response.playerId);
+        setRoomCode(response.room.code);
+        setPlayers(response.room.players);
         setIsMultiplayer(true);
-        setError(null);
-        setupGameHandlers();
         return response;
       } else {
-        setError(response.message);
-        throw new Error(response.message);
+        setError(response.error);
+        throw new Error(response.error);
       }
     } catch (err) {
       setError(err.message);
@@ -126,38 +106,39 @@ export const MultiplayerProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [setupGameHandlers]);
+  }, []);
 
   const leaveRoom = useCallback(() => {
-    const socket = getSocket();
     if (roomCode) {
-      socket.emit('leave_room', { roomCode });
+      socketService.leaveRoom(roomCode);
     }
     setRoomCode(null);
     setPlayers([]);
-    setCurrentPlayerId(null);
     setGameState(null);
     setIsMultiplayer(false);
   }, [roomCode]);
 
+  const toggleReady = useCallback(() => {
+    if (roomCode) {
+      socketService.toggleReady(roomCode);
+    }
+  }, [roomCode]);
+
   const startGame = useCallback(() => {
-    const socket = getSocket();
     if (roomCode) {
-      socket.emit('start_game', { roomCode });
+      socketService.startGame(roomCode);
     }
   }, [roomCode]);
 
-  const submitMove = useCallback((moveData) => {
-    const socket = getSocket();
+  const sendGameAction = useCallback((action) => {
     if (roomCode) {
-      socket.emit('make_move', { roomCode, ...moveData });
+      socketService.sendGameAction(roomCode, action);
     }
   }, [roomCode]);
 
-  const callDutch = useCallback(() => {
-    const socket = getSocket();
+  const updateGameState = useCallback((state) => {
     if (roomCode) {
-      socket.emit('call_dutch', { roomCode });
+      socketService.updateGameState(roomCode, state);
     }
   }, [roomCode]);
 
@@ -165,7 +146,6 @@ export const MultiplayerProvider = ({ children }) => {
     isMultiplayer,
     roomCode,
     players,
-    currentPlayerId,
     gameState,
     isConnected,
     error,
@@ -173,9 +153,10 @@ export const MultiplayerProvider = ({ children }) => {
     createRoom,
     joinRoom,
     leaveRoom,
+    toggleReady,
     startGame,
-    submitMove,
-    callDutch,
+    sendGameAction,
+    updateGameState,
   };
 
   return (

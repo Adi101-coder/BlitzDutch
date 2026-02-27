@@ -1,0 +1,403 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{listings}
+
+% Header and Footer
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Blitz Dutch - SRS}
+\lhead{Software Requirements Specification}
+\rfoot{Page \thepage}
+
+% Title formatting
+\titleformat{\section}{\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{1em}{}
+
+% Hyperlink colors
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue,
+    citecolor=blue
+}
+
+\begin{document}
+
+% Title Page
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    
+    {\Huge\bfseries Software Requirements Specification\par}
+    \vspace{0.5cm}
+    {\LARGE for\par}
+    \vspace{0.5cm}
+    {\Huge\bfseries Blitz Dutch Card Game\par}
+    \vspace{2cm}
+    
+    {\Large Version 1.0\par}
+    \vspace{1cm}
+    
+    {\large Prepared by: Development Team\par}
+    \vspace{0.5cm}
+    {\large \today\par}
+    
+    \vfill
+    
+    {\large A Web-Based Multiplayer Card Game with Blockchain Integration\par}
+    
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+\subsection{Purpose}
+This Software Requirements Specification (SRS) document provides a complete description of the Blitz Dutch card game application. It details the functional and non-functional requirements, system features, and external interface requirements for the web-based multiplayer card game platform.
+
+\subsection{Scope}
+Blitz Dutch is a fast-paced, strategic card game application that combines traditional card gameplay with modern web technologies and blockchain integration. The system provides:
+
+\begin{itemize}
+    \item Single-player mode with AI opponent
+    \item Local multiplayer mode (2-10 players)
+    \item Online multiplayer with real-time synchronization
+    \item Blockchain-based payment system for in-game transactions
+    \item Wallet integration (MetaMask, Phantom, Solflare, Trust Wallet)
+    \item Responsive web interface accessible across devices
+\end{itemize}
+
+\subsection{Definitions and Acronyms}
+\begin{itemize}
+    \item \textbf{SRS}: Software Requirements Specification
+    \item \textbf{UI}: User Interface
+    \item \textbf{API}: Application Programming Interface
+    \item \textbf{AI}: Artificial Intelligence
+    \item \textbf{Dutch}: The act of calling the end of a round in the game
+    \item \textbf{ETH}: Ethereum cryptocurrency
+    \item \textbf{SOL}: Solana cryptocurrency
+    \item \textbf{Smart Contract}: Self-executing contract with terms written in code
+\end{itemize}
+
+\subsection{References}
+\begin{itemize}
+    \item React.js Documentation: \url{https://react.dev}
+    \item Ethers.js Documentation: \url{https://docs.ethers.org}
+    \item Socket.IO Documentation: \url{https://socket.io/docs}
+\end{itemize}
+
+\section{Overall Description}
+
+\subsection{Product Perspective}
+Blitz Dutch is a standalone web application that operates in modern web browsers. The system integrates with:
+\begin{itemize}
+    \item Blockchain networks (Ethereum, Solana) for payment processing
+    \item WebSocket servers for real-time multiplayer functionality
+    \item Cryptocurrency wallets for user authentication and transactions
+\end{itemize}
+
+\subsection{Product Functions}
+The major functions of the system include:
+
+\begin{enumerate}
+    \item \textbf{Game Modes}
+    \begin{itemize}
+        \item Single-player vs AI
+        \item Local multiplayer (2-10 players)
+        \item Online multiplayer with room-based matchmaking
+    \end{itemize}
+    
+    \item \textbf{Gameplay Features}
+    \begin{itemize}
+        \item Card peeking mechanism (2 cards at game start)
+        \item Card swapping and drawing
+        \item Power cards (Jack, Queen) with special abilities
+        \item Dutch calling system
+        \item Score tracking and round management
+    \end{itemize}
+    
+    \item \textbf{Blockchain Integration}
+    \begin{itemize}
+        \item Wallet connection and authentication
+        \item Payment processing via smart contracts
+        \item Transaction history tracking
+    \end{itemize}
+\end{enumerate}
+
+\subsection{User Classes and Characteristics}
+\begin{itemize}
+    \item \textbf{Casual Players}: Users seeking entertainment, minimal technical knowledge required
+    \item \textbf{Competitive Players}: Users interested in strategic gameplay and multiplayer matches
+    \item \textbf{Crypto Users}: Users familiar with blockchain wallets and cryptocurrency transactions
+\end{itemize}
+
+\subsection{Operating Environment}
+\begin{itemize}
+    \item \textbf{Client-side}: Modern web browsers (Chrome, Firefox, Safari, Edge)
+    \item \textbf{Server-side}: Node.js runtime environment
+    \item \textbf{Blockchain}: Ethereum and Solana networks
+    \item \textbf{Minimum Requirements}: Internet connection, JavaScript-enabled browser
+\end{itemize}
+
+\section{System Features}
+
+\subsection{Game Setup and Configuration}
+
+\subsubsection{Description}
+Users can configure game settings before starting a match, including game mode selection and player count.
+
+\subsubsection{Functional Requirements}
+\begin{enumerate}[label=FR-\arabic*]
+    \item System shall allow users to select between three game modes: Single-player vs AI, Local Multiplayer, and Online Multiplayer
+    \item System shall allow users to select number of players (2-10) for local multiplayer mode
+    \item System shall automatically set player count to 2 for AI mode
+    \item System shall provide wallet connection interface before game start
+    \item System shall validate all configuration inputs before game initialization
+\end{enumerate}
+
+\subsection{Card Peeking Mechanism}
+
+\subsubsection{Description}
+At the start of each round, players can peek at exactly 2 of their 4 face-down cards.
+
+\subsubsection{Functional Requirements}
+\begin{enumerate}[label=FR-\arabic*]
+    \setcounter{enumi}{5}
+    \item System shall allow each player to peek at exactly 2 cards at round start
+    \item System shall display peeked cards for 2 seconds before hiding them
+    \item System shall prevent players from peeking at more than 2 cards
+    \item System shall track peek count for each player
+    \item System shall transition to gameplay phase after all players complete peeking
+\end{enumerate}
+
+\subsection{Gameplay Mechanics}
+
+\subsubsection{Description}
+Core gameplay involves drawing, swapping, and discarding cards with the goal of achieving the lowest score.
+
+\subsubsection{Functional Requirements}
+\begin{enumerate}[label=FR-\arabic*]
+    \setcounter{enumi}{10}
+    \item System shall allow players to draw from either draw pile or discard pile
+    \item System shall allow players to swap drawn card with any card in their hand
+    \item System shall keep all cards face-down after swapping
+    \item System shall enforce turn-based gameplay
+    \item System shall allow players to call "Dutch" to end the round
+    \item System shall give all other players one final turn after Dutch is called
+    \item System shall calculate and display scores at round end
+    \item System shall reveal all cards when round ends
+\end{enumerate}
+
+\subsection{Power Cards}
+
+\subsubsection{Description}
+Special cards (Jack and Queen) provide unique abilities when swapped into hand.
+
+\subsubsection{Functional Requirements}
+\begin{enumerate}[label=FR-\arabic*]
+    \setcounter{enumi}{18}
+    \item System shall activate Jack power when Jack is swapped: allow swapping any two cards in play
+    \item System shall activate Queen power when Queen is swapped: allow peeking at any one card for 3 seconds
+    \item System shall allow power card effects to target any player's cards
+    \item System shall provide clear UI instructions during power card activation
+\end{enumerate}
+
+\subsection{AI Opponent}
+
+\subsubsection{Description}
+Computer-controlled opponent that makes automated gameplay decisions.
+
+\subsubsection{Functional Requirements}
+\begin{enumerate}[label=FR-\arabic*]
+    \setcounter{enumi}{22}
+    \item System shall automatically execute AI turns without user input
+    \item AI shall peek at 2 random cards during setup phase
+    \item AI shall draw from draw pile 75\% of the time, discard pile 25\%
+    \item AI shall swap with random card in hand
+    \item AI shall have 15\% probability to call Dutch
+    \item System shall display "Computer is thinking" indicator during AI turns
+    \item AI moves shall have realistic delays (0.8-1.5 seconds)
+\end{enumerate}
+
+\subsection{Multiplayer Functionality}
+
+\subsubsection{Description}
+Real-time online multiplayer with room-based matchmaking.
+
+\subsubsection{Functional Requirements}
+\begin{enumerate}[label=FR-\arabic*]
+    \setcounter{enumi}{29}
+    \item System shall allow users to create multiplayer rooms with unique codes
+    \item System shall allow users to join rooms using room codes
+    \item System shall synchronize game state across all connected players
+    \item System shall handle player disconnections gracefully
+    \item System shall display connection status indicators
+\end{enumerate}
+
+\subsection{Blockchain Integration}
+
+\subsubsection{Description}
+Integration with cryptocurrency wallets and smart contracts for payment processing.
+
+\subsubsection{Functional Requirements}
+\begin{enumerate}[label=FR-\arabic*]
+    \setcounter{enumi}{34}
+    \item System shall support wallet connections: MetaMask, Phantom, Solflare, Trust Wallet
+    \item System shall display connected wallet address and balance
+    \item System shall allow users to send payments to agent addresses via smart contract
+    \item System shall display transaction history and status
+    \item System shall emit and listen to blockchain events
+    \item System shall handle transaction failures with appropriate error messages
+\end{enumerate}
+
+\section{External Interface Requirements}
+
+\subsection{User Interfaces}
+\begin{itemize}
+    \item \textbf{Landing Page}: Game introduction, mode selection, feature highlights
+    \item \textbf{Game Setup}: Mode selection, player configuration, wallet connection
+    \item \textbf{Game Board}: Card display, game center, player hands, score tracking
+    \item \textbf{Payment Interface}: Wallet connection, payment form, transaction history
+    \item \textbf{Rules Page}: Game rules and instructions
+    \item \textbf{Lobby}: Multiplayer room creation and joining
+\end{itemize}
+
+\subsection{Hardware Interfaces}
+\begin{itemize}
+    \item Standard input devices (mouse, keyboard, touchscreen)
+    \item Display capable of minimum 1024x768 resolution
+    \item Network interface for internet connectivity
+\end{itemize}
+
+\subsection{Software Interfaces}
+\begin{itemize}
+    \item \textbf{React.js}: Frontend framework for UI components
+    \item \textbf{Ethers.js}: Ethereum blockchain interaction library
+    \item \textbf{Socket.IO}: Real-time bidirectional communication
+    \item \textbf{Web3 Wallets}: Browser extensions for cryptocurrency wallets
+\end{itemize}
+
+\subsection{Communication Interfaces}
+\begin{itemize}
+    \item \textbf{HTTP/HTTPS}: Standard web protocols
+    \item \textbf{WebSocket}: Real-time multiplayer communication
+    \item \textbf{JSON-RPC}: Blockchain network communication
+\end{itemize}
+
+\section{Non-Functional Requirements}
+
+\subsection{Performance Requirements}
+\begin{enumerate}[label=NFR-\arabic*]
+    \item System shall load initial page within 3 seconds on standard broadband connection
+    \item System shall respond to user actions within 200 milliseconds
+    \item System shall support up to 10 concurrent players in a single game
+    \item System shall handle 100+ concurrent multiplayer rooms
+    \item Blockchain transactions shall complete within network-standard timeframes
+\end{enumerate}
+
+\subsection{Security Requirements}
+\begin{enumerate}[label=NFR-\arabic*]
+    \setcounter{enumi}{5}
+    \item System shall never store private keys or wallet credentials
+    \item System shall use HTTPS for all client-server communication
+    \item System shall validate all user inputs to prevent injection attacks
+    \item Smart contract interactions shall require explicit user approval
+    \item System shall implement rate limiting to prevent abuse
+\end{enumerate}
+
+\subsection{Usability Requirements}
+\begin{enumerate}[label=NFR-\arabic*]
+    \setcounter{enumi}{10}
+    \item Interface shall be intuitive for users with basic computer literacy
+    \item System shall provide clear feedback for all user actions
+    \item Error messages shall be user-friendly and actionable
+    \item Game rules shall be easily accessible from any page
+    \item System shall be responsive and work on mobile devices
+\end{enumerate}
+
+\subsection{Reliability Requirements}
+\begin{enumerate}[label=NFR-\arabic*]
+    \setcounter{enumi}{15}
+    \item System shall have 99\% uptime availability
+    \item System shall gracefully handle network disconnections
+    \item Game state shall be preserved during temporary connection loss
+    \item System shall log errors for debugging purposes
+\end{enumerate}
+
+\subsection{Maintainability Requirements}
+\begin{enumerate}[label=NFR-\arabic*]
+    \setcounter{enumi}{19}
+    \item Code shall follow React best practices and conventions
+    \item System shall use modular component architecture
+    \item Code shall include inline documentation
+    \item System shall use version control (Git)
+\end{enumerate}
+
+\section{System Architecture}
+
+\subsection{Technology Stack}
+\begin{itemize}
+    \item \textbf{Frontend}: React.js, TailwindCSS, Framer Motion
+    \item \textbf{Backend}: Node.js, Express.js, Socket.IO
+    \item \textbf{Blockchain}: Ethers.js, Smart Contracts (Solidity)
+    \item \textbf{State Management}: React Hooks, Context API
+    \item \textbf{Routing}: React Router
+\end{itemize}
+
+\subsection{Component Structure}
+\begin{itemize}
+    \item \textbf{Pages}: Landing, Game, Rules, Lobby, PaymentDemo
+    \item \textbf{Components}: Card, PlayerHand, GameCenter, Scoreboard, Navbar, WalletConnect
+    \item \textbf{Utilities}: cardUtils, wallet, contract, aiPlayer
+    \item \textbf{Context}: MultiplayerContext
+\end{itemize}
+
+\section{Appendices}
+
+\subsection{Smart Contract Interface}
+The system integrates with a smart contract deployed at address:\\
+\texttt{0x641E573A3dAc85E0c55B5Bc59879445311B084bB}
+
+\textbf{Contract Function:}
+\begin{verbatim}
+function payAgent(address agent, bytes32 jobId) payable
+\end{verbatim}
+
+\textbf{Contract Event:}
+\begin{verbatim}
+event AgentPaid(
+    address indexed agent,
+    address indexed payer,
+    uint256 amount,
+    bytes32 jobId
+)
+\end{verbatim}
+
+\subsection{Game Rules Summary}
+\begin{enumerate}
+    \item Each player receives 4 face-down cards
+    \item Players peek at 2 cards at game start
+    \item On each turn: draw a card, swap with hand card, discard
+    \item Goal: Achieve lowest total card value
+    \item Any player can call "Dutch" to end the round
+    \item After Dutch is called, all other players get one final turn
+    \item Scores are calculated and revealed at round end
+\end{enumerate}
+
+\subsection{Card Values}
+\begin{itemize}
+    \item Number cards (2-10): Face value
+    \item Jack, Queen: 10 points each
+    \item King: 0 points
+    \item Ace: 1 point
+\end{itemize}
+
+\end{document}
