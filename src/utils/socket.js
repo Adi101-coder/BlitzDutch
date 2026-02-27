@@ -23,6 +23,8 @@ class SocketService {
     this.socket.on('connect', () => {
       console.log('✅ Connected to server:', this.socket.id);
       this.connected = true;
+      // Store socket ID globally for easy access
+      window.socketId = this.socket.id;
     });
 
     this.socket.on('disconnect', () => {
@@ -75,6 +77,26 @@ class SocketService {
   }
 
   // Game actions
+  peekCard(roomCode, cardIndex) {
+    this.socket.emit('peek-card', roomCode, cardIndex);
+  }
+
+  drawCard(roomCode, fromDiscard = false) {
+    this.socket.emit('draw-card', roomCode, fromDiscard);
+  }
+
+  swapCard(roomCode, cardIndex) {
+    this.socket.emit('swap-card', roomCode, cardIndex);
+  }
+
+  endTurn(roomCode) {
+    this.socket.emit('end-turn', roomCode);
+  }
+
+  callDutch(roomCode) {
+    this.socket.emit('call-dutch', roomCode);
+  }
+
   sendGameAction(roomCode, action) {
     this.socket.emit('game-action', roomCode, action);
   }
@@ -92,12 +114,24 @@ class SocketService {
     this.socket.on('game-started', callback);
   }
 
-  onGameAction(callback) {
-    this.socket.on('game-action', callback);
+  onCardPeeked(callback) {
+    this.socket.on('card-peeked', callback);
   }
 
   onGameStateUpdated(callback) {
     this.socket.on('game-state-updated', callback);
+  }
+
+  onDutchCalled(callback) {
+    this.socket.on('dutch-called', callback);
+  }
+
+  onRoundEnded(callback) {
+    this.socket.on('round-ended', callback);
+  }
+
+  onGameAction(callback) {
+    this.socket.on('game-action', callback);
   }
 
   onPlayerDisconnected(callback) {

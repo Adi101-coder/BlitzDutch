@@ -73,10 +73,10 @@ const Lobby = () => {
 
   const handleStartGame = () => {
     startGame();
-    // Navigate to game page after a short delay
+    // Navigate to multiplayer game page
     setTimeout(() => {
-      navigate('/game');
-    }, 1000);
+      navigate('/multiplayer-game');
+    }, 500);
   };
 
   // Connection status

@@ -34,11 +34,24 @@ export const MultiplayerProvider = ({ children }) => {
       }
     };
 
-    const handleGameStarted = (room) => {
-      setGameState({ ...room.gameState, started: true });
+    const handleGameStarted = (data) => {
+      setGameState({ ...data.gameState, started: true });
     };
 
     const handleGameStateUpdated = (state) => {
+      setGameState(state);
+    };
+
+    const handleCardPeeked = (data) => {
+      // Handle peeked card (only for current player)
+      console.log('Card peeked:', data);
+    };
+
+    const handleDutchCalled = (data) => {
+      console.log(`${data.playerName} called Dutch!`);
+    };
+
+    const handleRoundEnded = (state) => {
       setGameState(state);
     };
 
@@ -50,12 +63,18 @@ export const MultiplayerProvider = ({ children }) => {
     socketService.onRoomUpdated(handleRoomUpdated);
     socketService.onGameStarted(handleGameStarted);
     socketService.onGameStateUpdated(handleGameStateUpdated);
+    socketService.onCardPeeked(handleCardPeeked);
+    socketService.onDutchCalled(handleDutchCalled);
+    socketService.onRoundEnded(handleRoundEnded);
     socketService.onPlayerDisconnected(handlePlayerDisconnected);
 
     return () => {
       socketService.off('room-updated', handleRoomUpdated);
       socketService.off('game-started', handleGameStarted);
       socketService.off('game-state-updated', handleGameStateUpdated);
+      socketService.off('card-peeked', handleCardPeeked);
+      socketService.off('dutch-called', handleDutchCalled);
+      socketService.off('round-ended', handleRoundEnded);
       socketService.off('player-disconnected', handlePlayerDisconnected);
     };
   }, []);
@@ -142,6 +161,36 @@ export const MultiplayerProvider = ({ children }) => {
     }
   }, [roomCode]);
 
+  const peekCard = useCallback((cardIndex) => {
+    if (roomCode) {
+      socketService.peekCard(roomCode, cardIndex);
+    }
+  }, [roomCode]);
+
+  const drawCard = useCallback((fromDiscard = false) => {
+    if (roomCode) {
+      socketService.drawCard(roomCode, fromDiscard);
+    }
+  }, [roomCode]);
+
+  const swapCard = useCallback((cardIndex) => {
+    if (roomCode) {
+      socketService.swapCard(roomCode, cardIndex);
+    }
+  }, [roomCode]);
+
+  const endTurn = useCallback(() => {
+    if (roomCode) {
+      socketService.endTurn(roomCode);
+    }
+  }, [roomCode]);
+
+  const callDutch = useCallback(() => {
+    if (roomCode) {
+      socketService.callDutch(roomCode);
+    }
+  }, [roomCode]);
+
   const value = {
     isMultiplayer,
     roomCode,
@@ -157,6 +206,11 @@ export const MultiplayerProvider = ({ children }) => {
     startGame,
     sendGameAction,
     updateGameState,
+    peekCard,
+    drawCard,
+    swapCard,
+    endTurn,
+    callDutch,
   };
 
   return (
