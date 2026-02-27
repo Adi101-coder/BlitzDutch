@@ -26,7 +26,7 @@ const Lobby = () => {
   const [joinCode, setJoinCode] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const isHost = roomCode && players.length > 0 && players[0].id === currentPlayerId;
+  const isHost = roomCode && players.length > 0 && players[0].name === playerName;
 
   const handleCreateRoom = async () => {
     if (!playerName.trim()) {
