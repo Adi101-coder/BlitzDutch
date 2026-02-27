@@ -14,6 +14,15 @@ const PaymentDemo = () => {
   const [events, setEvents] = useState([]);
   const [history, setHistory] = useState([]);
 
+  const fetchHistory = async () => {
+    if (wallet?.connected) {
+      const result = await getAgentPaidHistory(wallet);
+      if (result.success) {
+        setHistory(result.history);
+      }
+    }
+  };
+
   useEffect(() => {
     if (wallet?.connected && wallet.chain === 'ethereum') {
       // Listen to real-time events
@@ -26,15 +35,8 @@ const PaymentDemo = () => {
 
       return cleanup;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet]);
-
-  const fetchHistory = async () => {
-    if (wallet?.connected) {
-      const result = await getAgentPaidHistory(wallet);
-      if (result.success) {
-        setHistory(result.history);
-      }
-    }
   };
 
   const handleWalletConnect = (connectedWallet) => {

@@ -36,9 +36,7 @@ const Game = () => {
   const [aiThinking, setAiThinking] = useState(false); // Track if AI is making a move
 
   // Power card states
-  const [powerCardActive, setPowerCardActive] = useState(null); // 'jack' or 'queen'
   const [jackSwapSelection, setJackSwapSelection] = useState({ playerIndex: null, cardIndex: null, count: 0 }); // Track Jack swap selections
-  const [queenPeekCard, setQueenPeekCard] = useState(null); // Track which card Queen is peeking at
 
   // AI Logic - Computer plays automatically
   React.useEffect(() => {
@@ -325,48 +323,6 @@ const Game = () => {
     setGamePhase('discard');
   };
 
-  // Handle immediate discard of matching card
-  const handleDiscardMatching = (cardIndex) => {
-    if (discardPile.length === 0) return;
-
-    const currentPlayer = players[currentPlayerIndex];
-    if (!currentPlayer || !currentPlayer.hand) return;
-
-    const card = currentPlayer.hand[cardIndex];
-    const topDiscard = discardPile[discardPile.length - 1];
-
-    if (!card || !card.isRevealed || !topDiscard || !sameRank(card, topDiscard)) {
-      // Mistake - penalty card
-      if (drawPile.length > 0) {
-        const penaltyCard = drawPile[drawPile.length - 1];
-        if (penaltyCard) {
-          const newHand = [...currentPlayer.hand];
-          newHand.push({ ...penaltyCard, isRevealed: false });
-          const updatedPlayers = [...players];
-          updatedPlayers[currentPlayerIndex].hand = newHand;
-          setPlayers(updatedPlayers);
-          setDrawPile(drawPile.slice(0, -1));
-        }
-      }
-      return;
-    }
-
-    // Remove card from hand
-    const newHand = currentPlayer.hand.filter((_, i) => i !== cardIndex);
-
-    // Update player hand
-    const updatedPlayers = [...players];
-    updatedPlayers[currentPlayerIndex].hand = newHand;
-    setPlayers(updatedPlayers);
-
-    // Add to discard pile
-    setDiscardPile([...discardPile, card]);
-
-    // Check if player has no cards left
-    if (newHand.length === 0) {
-      endRound();
-    }
-  };
 
   // Handle Jack power card - swap any two cards
   const handleJackCardSelect = (playerIndex, cardIndex) => {
