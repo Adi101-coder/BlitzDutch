@@ -4,8 +4,13 @@ services:
     env: node
     buildCommand: npm install
     startCommand: node server/index.js
+    plan: free
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
+      - key: ALLOWED_ORIGINS
+        sync: false
+        # Set this in Render dashboard after deploying frontend
+        # Example: https://blitz-dutch.vercel.app,https://your-app.vercel.app
