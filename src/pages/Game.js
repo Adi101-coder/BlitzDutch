@@ -270,7 +270,6 @@ const Game = () => {
       setSelectedCardIndex(null);
     } else {
       // All players have peeked, start the game
-      setPeekingPhase(false);
       setCurrentPlayerIndex(0);
       setGamePhase('draw');
     }
@@ -298,14 +297,11 @@ const Game = () => {
     // Check for power cards (Jack or Queen)
     if (drawnCard.rank === 'J') {
       // Jack power: swap any two cards in the pot
-      setPowerCardActive('jack');
       setJackSwapSelection({ playerIndex: null, cardIndex: null, count: 0 });
       setGamePhase('power-jack');
       return;
     } else if (drawnCard.rank === 'Q') {
       // Queen power: peek at any one card in the pot
-      setPowerCardActive('queen');
-      setQueenPeekCard(null);
       setGamePhase('power-queen');
       return;
     }
@@ -348,7 +344,6 @@ const Game = () => {
       setPlayers(updatedPlayers);
 
       // Reset and continue
-      setPowerCardActive(null);
       setJackSwapSelection({ playerIndex: null, cardIndex: null, count: 0 });
       setGamePhase('discard');
     }
@@ -367,8 +362,6 @@ const Game = () => {
       return updatedPlayers;
     });
 
-    setQueenPeekCard({ playerIndex, cardIndex });
-
     // Hide the card after 3 seconds
     setTimeout(() => {
       setPlayers(prevPlayers => {
@@ -380,8 +373,6 @@ const Game = () => {
       });
 
       // Reset and continue
-      setPowerCardActive(null);
-      setQueenPeekCard(null);
       setGamePhase('discard');
     }, 3000);
   };
