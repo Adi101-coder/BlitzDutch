@@ -1,0 +1,17 @@
+{
+  "name": "blitz-dutch-server",
+  "version": "1.0.0",
+  "description": "WebSocket server for Blitz Dutch multiplayer",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.3",
+    "express": "^5.2.1",
+    "cors": "^2.8.6"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
