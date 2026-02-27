@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const { initializeGame, calculateScores } = require('./gameLogic');
 
 const app = express();
 app.use(cors());
@@ -123,27 +124,127 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomCode);
     if (!room || room.host !== socket.id) return;
 
+    // Initialize game state
+    room.gameState = initializeGame(room.players);
     room.started = true;
-    io.to(roomCode).emit('game-started', room);
+    
+    io.to(roomCode).emit('game-started', { room, gameState: room.gameState });
     console.log(`Game started in room: ${roomCode}`);
   });
 
-  // Game state updates
-  socket.on('game-action', (roomCode, action) => {
+  // Player peek card
+  socket.on('peek-card', (roomCode, cardIndex) => {
     const room = rooms.get(roomCode);
-    if (!room) return;
+    if (!room || !room.gameState) return;
 
-    // Broadcast action to all players in room
-    socket.to(roomCode).emit('game-action', action);
+    const playerIndex = room.gameState.players.findIndex(p => p.id === socket.id);
+    if (playerIndex === -1) return;
+
+    const player = room.gameState.players[playerIndex];
+    
+    // Only allow 2 peeks
+    if (player.peekCount >= 2) return;
+
+    player.peekCount++;
+    
+    // Send peeked card only to this player
+    socket.emit('card-peeked', {
+      cardIndex,
+      card: player.hand[cardIndex],
+      peekCount: player.peekCount
+    });
+
+    // Check if all players have peeked
+    const allPeeked = room.gameState.players.every(p => p.peekCount >= 2);
+    if (allPeeked) {
+      room.gameState.gamePhase = 'draw';
+      io.to(roomCode).emit('game-state-updated', room.gameState);
+    }
   });
 
-  // Update game state
-  socket.on('update-game-state', (roomCode, gameState) => {
+  // Draw card
+  socket.on('draw-card', (roomCode, fromDiscard) => {
     const room = rooms.get(roomCode);
-    if (!room) return;
+    if (!room || !room.gameState) return;
 
-    room.gameState = gameState;
-    socket.to(roomCode).emit('game-state-updated', gameState);
+    const currentPlayer = room.gameState.players[room.gameState.currentPlayerIndex];
+    if (currentPlayer.id !== socket.id) return;
+    if (room.gameState.gamePhase !== 'draw') return;
+
+    let drawnCard;
+    if (fromDiscard && room.gameState.discardPile.length > 0) {
+      drawnCard = room.gameState.discardPile.pop();
+    } else if (room.gameState.drawPile.length > 0) {
+      drawnCard = room.gameState.drawPile.pop();
+    } else {
+      return;
+    }
+
+    room.gameState.drawnCard = drawnCard;
+    room.gameState.gamePhase = 'swap';
+    
+    io.to(roomCode).emit('game-state-updated', room.gameState);
+  });
+
+  // Swap card
+  socket.on('swap-card', (roomCode, cardIndex) => {
+    const room = rooms.get(roomCode);
+    if (!room || !room.gameState) return;
+
+    const currentPlayer = room.gameState.players[room.gameState.currentPlayerIndex];
+    if (currentPlayer.id !== socket.id) return;
+    if (room.gameState.gamePhase !== 'swap' || !room.gameState.drawnCard) return;
+
+    const swappedCard = currentPlayer.hand[cardIndex];
+    currentPlayer.hand[cardIndex] = { ...room.gameState.drawnCard, isRevealed: false };
+    
+    room.gameState.discardPile.push(swappedCard);
+    room.gameState.drawnCard = null;
+    room.gameState.gamePhase = 'discard';
+    
+    io.to(roomCode).emit('game-state-updated', room.gameState);
+  });
+
+  // End turn
+  socket.on('end-turn', (roomCode) => {
+    const room = rooms.get(roomCode);
+    if (!room || !room.gameState) return;
+
+    const currentPlayer = room.gameState.players[room.gameState.currentPlayerIndex];
+    if (currentPlayer.id !== socket.id) return;
+
+    // Handle final turns after Dutch is called
+    if (room.gameState.dutchCalled) {
+      room.gameState.finalTurns++;
+      if (room.gameState.finalTurns >= room.gameState.players.length) {
+        // End round
+        room.gameState = calculateScores(room.gameState);
+        io.to(roomCode).emit('round-ended', room.gameState);
+        return;
+      }
+    }
+
+    // Move to next player
+    room.gameState.currentPlayerIndex = (room.gameState.currentPlayerIndex + 1) % room.gameState.players.length;
+    room.gameState.gamePhase = 'draw';
+    
+    io.to(roomCode).emit('game-state-updated', room.gameState);
+  });
+
+  // Call Dutch
+  socket.on('call-dutch', (roomCode) => {
+    const room = rooms.get(roomCode);
+    if (!room || !room.gameState) return;
+
+    const playerIndex = room.gameState.players.findIndex(p => p.id === socket.id);
+    if (playerIndex === -1 || room.gameState.dutchCalled) return;
+
+    room.gameState.dutchCalled = true;
+    room.gameState.dutchCallerIndex = playerIndex;
+    room.gameState.finalTurns = 0;
+    
+    io.to(roomCode).emit('dutch-called', { playerIndex, playerName: room.gameState.players[playerIndex].name });
+    io.to(roomCode).emit('game-state-updated', room.gameState);
   });
 
   // Handle disconnection
