@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMultiplayer } from '../context/MultiplayerContext';
-import { createDeck, shuffleDeck, getCardValue, sameRank, isSpecialCard } from '../utils/cardUtils';
+import { createDeck, shuffleDeck, getCardValue, sameRank } from '../utils/cardUtils';
 import PlayerHand from '../components/PlayerHand';
 import GameCenter from '../components/GameCenter';
 import Scoreboard from '../components/Scoreboard';
@@ -29,9 +29,7 @@ const Game = () => {
   const [dutchCalled, setDutchCalled] = useState(false);
   const [dutchCallerIndex, setDutchCallerIndex] = useState(null);
   const [finalTurns, setFinalTurns] = useState(0);
-  const [specialCardEffect, setSpecialCardEffect] = useState(null);
   const [peekCounts, setPeekCounts] = useState({}); // Track how many cards each player has peeked
-  const [peekingPhase, setPeekingPhase] = useState(true); // Track if we're in initial peeking phase
   
   // AI mode
   const [vsComputer, setVsComputer] = useState(false); // Track if playing against computer
@@ -134,6 +132,7 @@ const Game = () => {
     };
     
     makeAIMove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vsComputer, gameStarted, currentPlayerIndex, gamePhase, showScores, aiThinking]);
 
   // Initialize game
@@ -193,30 +192,10 @@ const Game = () => {
       setDutchCalled(false);
       setDutchCallerIndex(null);
       setFinalTurns(0);
-      setSpecialCardEffect(null);
       setPeekCounts({}); // Reset peek counts
-      setPeekingPhase(true); // Enable peeking phase
       setGameStarted(true);
     } catch (error) {
       console.error('Error starting game:', error);
-    }
-  };
-
-  // Handle special card effects
-  const handleSpecialCard = (card) => {
-    if (!card || !isSpecialCard(card)) return null;
-
-    switch (card.rank) {
-      case 'J': // Jack - swap any two cards
-        return { type: 'jack', message: 'Select two cards to swap' };
-      case 'Q': // Queen - peek at one card
-        return { type: 'queen', message: 'Select a card to peek at' };
-      case 'A': // Ace - give card to another player
-        return { type: 'ace', message: 'Select a player to give a card to' };
-      case 'K': // King - already handled in scoring
-        return null;
-      default:
-        return null;
     }
   };
 
@@ -474,7 +453,6 @@ const Game = () => {
     setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
     setSelectedCardIndex(null);
     setGamePhase('draw');
-    setSpecialCardEffect(null);
   };
 
   // Calculate scores
