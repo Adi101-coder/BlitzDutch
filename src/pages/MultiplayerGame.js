@@ -80,19 +80,23 @@ const MultiplayerGame = () => {
 
   // Debug logging
   useEffect(() => {
-    console.log('Game State:', {
+    console.log('Game State Debug:', {
       currentPlayerId,
       myPlayerIndex,
+      myPlayer: myPlayer?.name,
       isMyTurn,
       gamePhase: gameState.gamePhase,
-      currentPlayerIndex: gameState.currentPlayerIndex
+      currentPlayerIndex: gameState.currentPlayerIndex,
+      currentPlayerName: gameState.players[gameState.currentPlayerIndex]?.name,
+      allPlayers: gameState.players.map(p => ({ id: p.id, name: p.name, peekCount: p.peekCount }))
     });
-  }, [currentPlayerId, myPlayerIndex, isMyTurn, gameState.gamePhase, gameState.currentPlayerIndex]);
+  }, [currentPlayerId, myPlayerIndex, myPlayer, isMyTurn, gameState.gamePhase, gameState.currentPlayerIndex, gameState.players]);
 
   const handlePeekCard = (index) => {
     if (gameState.gamePhase !== 'peek') return;
     if (!myPlayer || myPlayer.peekCount >= 2) return;
     
+    console.log('Peeking card:', index, 'Current peek count:', myPlayer.peekCount);
     peekCard(index);
   };
 
@@ -194,12 +198,13 @@ const MultiplayerGame = () => {
           <div className="space-y-4">
             {gameState.players.map((player, index) => {
               if (index === myPlayerIndex) return null;
+              const isThisPlayerActive = gameState.gamePhase === 'peek' ? false : index === gameState.currentPlayerIndex;
               return (
                 <PlayerHand
                   key={player.id}
                   player={player}
                   cards={player.hand}
-                  isActive={index === gameState.currentPlayerIndex}
+                  isActive={isThisPlayerActive}
                 />
               );
             })}
@@ -223,13 +228,13 @@ const MultiplayerGame = () => {
                     👀 Peek Phase
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    All players can peek at their cards
+                    All players: peek at your cards ({myPlayer?.peekCount || 0}/2)
                   </p>
                 </>
               ) : (
                 <>
                   <p className="text-sm text-white font-semibold">
-                    {isMyTurn ? "🎮 Your Turn!" : `⏳ ${currentPlayer.name}'s Turn`}
+                    {isMyTurn ? "🎮 Your Turn!" : `⏳ ${currentPlayer?.name || 'Waiting'}'s Turn`}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
                     Phase: {gameState.gamePhase}
@@ -272,11 +277,11 @@ const MultiplayerGame = () => {
                   cards={myPlayer.hand.map((card, idx) => 
                     peekedCards[idx] ? { ...peekedCards[idx], isRevealed: true } : card
                   )}
-                  isActive={isMyTurn}
+                  isActive={gameState.gamePhase === 'peek' || isMyTurn}
                   onCardClick={(index) => {
                     if (gameState.gamePhase === 'peek') {
                       handlePeekCard(index);
-                    } else if (gameState.gamePhase === 'swap') {
+                    } else if (gameState.gamePhase === 'swap' && isMyTurn) {
                       handleCardSelect(index);
                     }
                   }}
