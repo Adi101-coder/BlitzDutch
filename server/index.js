@@ -161,6 +161,9 @@ io.on('connection', (socket) => {
 
     console.log(`Player ${player.name} peeked card ${cardIndex} (${player.peekCount}/2)`);
 
+    // Broadcast updated game state so all clients know the peek count
+    io.to(roomCode).emit('game-state-updated', room.gameState);
+
     // Check if all players have peeked at least once (to start the game flow)
     const allStartedPeeking = room.gameState.players.every(p => p.peekCount >= 1);
     
