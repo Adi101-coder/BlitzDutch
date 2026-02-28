@@ -40,6 +40,7 @@ export const MultiplayerProvider = ({ children }) => {
     };
 
     const handleGameStarted = (data) => {
+      console.log('🎮 Game started event received:', data);
       setGameState({ ...data.gameState, started: true });
       // Trigger navigation for all players
       window.dispatchEvent(new CustomEvent('game-started'));

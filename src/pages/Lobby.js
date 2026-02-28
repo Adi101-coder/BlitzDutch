@@ -31,6 +31,7 @@ const Lobby = () => {
   // Listen for game start event and navigate all players
   useEffect(() => {
     const handleGameStart = () => {
+      console.log('🚀 Navigating to multiplayer game...');
       if (roomCode) {
         navigate('/multiplayer-game');
       }
