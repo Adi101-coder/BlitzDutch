@@ -113,7 +113,7 @@ const Lobby = () => {
                 Game Lobby
               </CardTitle>
               <p className="text-gray-400 text-sm uppercase tracking-widest mt-2">
-                Waiting for players...
+                Waiting for players... v2.1
               </p>
             </CardHeader>
 

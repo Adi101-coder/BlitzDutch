@@ -160,7 +160,7 @@ const MultiplayerGame = () => {
               <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">BLITZ DUTCH</h1>
               <div className="flex items-center space-x-2 mt-1">
                 <p className="text-gray-400 text-xs font-medium uppercase tracking-widest">
-                  Multiplayer - Room: {roomCode}
+                  Multiplayer v2.1 - Room: {roomCode}
                 </p>
                 {isConnected ? (
                   <Wifi className="w-3 h-3 text-green-400" />
