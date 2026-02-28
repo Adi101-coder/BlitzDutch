@@ -29,11 +29,6 @@ const PlayerHand = ({
                 {player.name}
               </h3>
             </div>
-            {isActive && (
-              <span className="px-3 py-1 bg-white text-black text-xs font-bold rounded-full uppercase tracking-wide animate-pulse">
-                Your Turn
-              </span>
-            )}
           </div>
           <div className="flex space-x-2 justify-center px-2">
             {cards.map((card, index) => (

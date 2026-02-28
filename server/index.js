@@ -145,12 +145,20 @@ io.on('connection', (socket) => {
     const player = room.gameState.players[playerIndex];
     
     // Only allow peeking during peek phase
-    if (room.gameState.gamePhase !== 'peek') return;
+    if (room.gameState.gamePhase !== 'peek') {
+      console.log(`Peek rejected: phase is ${room.gameState.gamePhase}`);
+      return;
+    }
     
     // Only allow 2 peeks per player
-    if (player.peekCount >= 2) return;
+    if (player.peekCount >= 2) {
+      console.log(`Peek rejected: ${player.name} already peeked ${player.peekCount} times`);
+      return;
+    }
 
     player.peekCount++;
+    
+    console.log(`Player ${player.name} peeked card ${cardIndex} (${player.peekCount}/2)`);
     
     // Send peeked card only to this player
     socket.emit('card-peeked', {
@@ -159,18 +167,14 @@ io.on('connection', (socket) => {
       peekCount: player.peekCount
     });
 
-    console.log(`Player ${player.name} peeked card ${cardIndex} (${player.peekCount}/2)`);
-
     // Broadcast updated game state so all clients know the peek count
     io.to(roomCode).emit('game-state-updated', room.gameState);
 
-    // Check if all players have peeked at least once (to start the game flow)
-    const allStartedPeeking = room.gameState.players.every(p => p.peekCount >= 1);
+    // Only transition to draw phase when ALL players have peeked 2 cards
+    const allPeekedTwice = room.gameState.players.every(p => p.peekCount >= 2);
     
-    // Optionally auto-advance after all players have done 2 peeks
-    // For now, let's advance to draw phase after all players peek at least once
-    if (allStartedPeeking && room.gameState.gamePhase === 'peek') {
-      console.log('All players have started peeking, transitioning to draw phase');
+    if (allPeekedTwice && room.gameState.gamePhase === 'peek') {
+      console.log('All players have peeked twice, transitioning to draw phase');
       room.gameState.gamePhase = 'draw';
       io.to(roomCode).emit('game-state-updated', room.gameState);
     }
