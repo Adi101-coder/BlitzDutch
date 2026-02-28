@@ -128,6 +128,8 @@ io.on('connection', (socket) => {
     room.gameState = initializeGame(room.players);
     room.started = true;
     
+    // Emit both events to ensure all clients update properly
+    io.to(roomCode).emit('room-updated', room);
     io.to(roomCode).emit('game-started', { room, gameState: room.gameState });
     console.log(`Game started in room: ${roomCode}`);
   });
@@ -142,7 +144,10 @@ io.on('connection', (socket) => {
 
     const player = room.gameState.players[playerIndex];
     
-    // Only allow 2 peeks
+    // Only allow peeking during peek phase
+    if (room.gameState.gamePhase !== 'peek') return;
+    
+    // Only allow 2 peeks per player
     if (player.peekCount >= 2) return;
 
     player.peekCount++;
@@ -154,9 +159,15 @@ io.on('connection', (socket) => {
       peekCount: player.peekCount
     });
 
-    // Check if all players have peeked
-    const allPeeked = room.gameState.players.every(p => p.peekCount >= 2);
-    if (allPeeked) {
+    console.log(`Player ${player.name} peeked card ${cardIndex} (${player.peekCount}/2)`);
+
+    // Check if all players have peeked at least once (to start the game flow)
+    const allStartedPeeking = room.gameState.players.every(p => p.peekCount >= 1);
+    
+    // Optionally auto-advance after all players have done 2 peeks
+    // For now, let's advance to draw phase after all players peek at least once
+    if (allStartedPeeking && room.gameState.gamePhase === 'peek') {
+      console.log('All players have started peeking, transitioning to draw phase');
       room.gameState.gamePhase = 'draw';
       io.to(roomCode).emit('game-state-updated', room.gameState);
     }

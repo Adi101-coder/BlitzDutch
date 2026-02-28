@@ -28,6 +28,18 @@ const Lobby = () => {
 
   const isHost = roomCode && players.length > 0 && players[0].name === playerName;
 
+  // Listen for game start event and navigate all players
+  useEffect(() => {
+    const handleGameStart = () => {
+      if (roomCode) {
+        navigate('/multiplayer-game');
+      }
+    };
+
+    window.addEventListener('game-started', handleGameStart);
+    return () => window.removeEventListener('game-started', handleGameStart);
+  }, [roomCode, navigate]);
+
   const handleCreateRoom = async () => {
     if (!playerName.trim()) {
       alert('Please enter your name');
@@ -73,10 +85,6 @@ const Lobby = () => {
 
   const handleStartGame = () => {
     startGame();
-    // Navigate to multiplayer game page
-    setTimeout(() => {
-      navigate('/multiplayer-game');
-    }, 500);
   };
 
   // Connection status

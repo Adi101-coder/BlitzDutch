@@ -11,6 +11,7 @@ export const MultiplayerProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [currentPlayerId, setCurrentPlayerId] = useState(null);
 
   // Initialize socket connection
   useEffect(() => {
@@ -18,24 +19,30 @@ export const MultiplayerProvider = ({ children }) => {
     
     const checkConnection = setInterval(() => {
       setIsConnected(socketService.isConnected());
+      // Update current player ID
+      if (window.socketId && window.socketId !== currentPlayerId) {
+        setCurrentPlayerId(window.socketId);
+      }
     }, 1000);
 
     return () => {
       clearInterval(checkConnection);
     };
-  }, []);
+  }, [currentPlayerId]);
 
   // Setup event listeners
   useEffect(() => {
     const handleRoomUpdated = (room) => {
       setPlayers(room.players);
-      if (room.started) {
+      if (room.started && room.gameState) {
         setGameState({ ...room.gameState, started: true });
       }
     };
 
     const handleGameStarted = (data) => {
       setGameState({ ...data.gameState, started: true });
+      // Trigger navigation for all players
+      window.dispatchEvent(new CustomEvent('game-started'));
     };
 
     const handleGameStateUpdated = (state) => {
@@ -199,6 +206,7 @@ export const MultiplayerProvider = ({ children }) => {
     isConnected,
     error,
     loading,
+    currentPlayerId,
     createRoom,
     joinRoom,
     leaveRoom,
