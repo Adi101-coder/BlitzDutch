@@ -137,28 +137,38 @@ io.on('connection', (socket) => {
   // Player peek card
   socket.on('peek-card', (roomCode, cardIndex) => {
     const room = rooms.get(roomCode);
-    if (!room || !room.gameState) return;
+    if (!room || !room.gameState) {
+      console.log(`Peek failed: room or gameState not found for ${roomCode}`);
+      return;
+    }
 
     const playerIndex = room.gameState.players.findIndex(p => p.id === socket.id);
-    if (playerIndex === -1) return;
+    if (playerIndex === -1) {
+      console.log(`Peek failed: player ${socket.id} not found in room ${roomCode}`);
+      return;
+    }
 
     const player = room.gameState.players[playerIndex];
+    
+    console.log(`Peek attempt by ${player.name} (index ${playerIndex}): card ${cardIndex}, current peekCount: ${player.peekCount}, phase: ${room.gameState.gamePhase}`);
     
     // Only allow peeking during peek phase
     if (room.gameState.gamePhase !== 'peek') {
       console.log(`Peek rejected: phase is ${room.gameState.gamePhase}`);
+      socket.emit('peek-rejected', { reason: 'Wrong phase', phase: room.gameState.gamePhase });
       return;
     }
     
     // Only allow 2 peeks per player
     if (player.peekCount >= 2) {
       console.log(`Peek rejected: ${player.name} already peeked ${player.peekCount} times`);
+      socket.emit('peek-rejected', { reason: 'Already peeked twice', peekCount: player.peekCount });
       return;
     }
 
     player.peekCount++;
     
-    console.log(`Player ${player.name} peeked card ${cardIndex} (${player.peekCount}/2)`);
+    console.log(`✅ Player ${player.name} (index ${playerIndex}) successfully peeked card ${cardIndex} (${player.peekCount}/2)`);
     
     // Send peeked card only to this player
     socket.emit('card-peeked', {
@@ -170,11 +180,14 @@ io.on('connection', (socket) => {
     // Broadcast updated game state so all clients know the peek count
     io.to(roomCode).emit('game-state-updated', room.gameState);
 
+    // Log all players' peek counts
+    console.log('All players peek status:', room.gameState.players.map(p => `${p.name}: ${p.peekCount}/2`).join(', '));
+
     // Only transition to draw phase when ALL players have peeked 2 cards
     const allPeekedTwice = room.gameState.players.every(p => p.peekCount >= 2);
     
     if (allPeekedTwice && room.gameState.gamePhase === 'peek') {
-      console.log('All players have peeked twice, transitioning to draw phase');
+      console.log('🎮 All players have peeked twice, transitioning to draw phase');
       room.gameState.gamePhase = 'draw';
       io.to(roomCode).emit('game-state-updated', room.gameState);
     }

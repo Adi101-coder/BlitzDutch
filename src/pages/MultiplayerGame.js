@@ -93,10 +93,28 @@ const MultiplayerGame = () => {
   }, [currentPlayerId, myPlayerIndex, myPlayer, isMyTurn, gameState.gamePhase, gameState.currentPlayerIndex, gameState.players]);
 
   const handlePeekCard = (index) => {
-    if (gameState.gamePhase !== 'peek') return;
-    if (!myPlayer || myPlayer.peekCount >= 2) return;
+    console.log('🔍 Peek attempt:', {
+      index,
+      gamePhase: gameState.gamePhase,
+      myPlayer: myPlayer?.name,
+      currentPeekCount: myPlayer?.peekCount,
+      canPeek: gameState.gamePhase === 'peek' && myPlayer && myPlayer.peekCount < 2
+    });
     
-    console.log('Peeking card:', index, 'Current peek count:', myPlayer.peekCount);
+    if (gameState.gamePhase !== 'peek') {
+      console.log('❌ Peek blocked: not in peek phase');
+      return;
+    }
+    if (!myPlayer) {
+      console.log('❌ Peek blocked: myPlayer not found');
+      return;
+    }
+    if (myPlayer.peekCount >= 2) {
+      console.log('❌ Peek blocked: already peeked twice');
+      return;
+    }
+    
+    console.log('✅ Sending peek request to server');
     peekCard(index);
   };
 
