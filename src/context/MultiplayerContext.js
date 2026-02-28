@@ -30,23 +30,6 @@ export const MultiplayerProvider = ({ children }) => {
     };
   }, [currentPlayerId]);
 
-  // Try to rejoin room after refresh
-  useEffect(() => {
-    const savedRoom = localStorage.getItem('blitz-dutch-room');
-    const savedPlayer = localStorage.getItem('blitz-dutch-player');
-    
-    if (savedRoom && savedPlayer && !roomCode && isConnected) {
-      console.log('🔄 Attempting to rejoin room:', savedRoom);
-      // Try to rejoin
-      joinRoom(savedRoom, savedPlayer).catch(err => {
-        console.log('❌ Could not rejoin room:', err.message);
-        // Clear invalid data
-        localStorage.removeItem('blitz-dutch-room');
-        localStorage.removeItem('blitz-dutch-player');
-      });
-    }
-  }, [isConnected, roomCode, joinRoom]);
-
   // Setup event listeners
   useEffect(() => {
     const handleRoomUpdated = (room) => {
@@ -229,6 +212,23 @@ export const MultiplayerProvider = ({ children }) => {
       socketService.callDutch(roomCode);
     }
   }, [roomCode]);
+
+  // Try to rejoin room after refresh (after all functions are defined)
+  useEffect(() => {
+    const savedRoom = localStorage.getItem('blitz-dutch-room');
+    const savedPlayer = localStorage.getItem('blitz-dutch-player');
+    
+    if (savedRoom && savedPlayer && !roomCode && isConnected) {
+      console.log('🔄 Attempting to rejoin room:', savedRoom);
+      // Try to rejoin
+      joinRoom(savedRoom, savedPlayer).catch(err => {
+        console.log('❌ Could not rejoin room:', err.message);
+        // Clear invalid data
+        localStorage.removeItem('blitz-dutch-room');
+        localStorage.removeItem('blitz-dutch-player');
+      });
+    }
+  }, [isConnected, roomCode, joinRoom]);
 
   const value = {
     isMultiplayer,
