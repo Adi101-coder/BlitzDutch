@@ -30,6 +30,23 @@ export const MultiplayerProvider = ({ children }) => {
     };
   }, [currentPlayerId]);
 
+  // Try to rejoin room after refresh
+  useEffect(() => {
+    const savedRoom = localStorage.getItem('blitz-dutch-room');
+    const savedPlayer = localStorage.getItem('blitz-dutch-player');
+    
+    if (savedRoom && savedPlayer && !roomCode && isConnected) {
+      console.log('🔄 Attempting to rejoin room:', savedRoom);
+      // Try to rejoin
+      joinRoom(savedRoom, savedPlayer).catch(err => {
+        console.log('❌ Could not rejoin room:', err.message);
+        // Clear invalid data
+        localStorage.removeItem('blitz-dutch-room');
+        localStorage.removeItem('blitz-dutch-player');
+      });
+    }
+  }, [isConnected, roomCode, joinRoom]);
+
   // Setup event listeners
   useEffect(() => {
     const handleRoomUpdated = (room) => {
@@ -98,6 +115,11 @@ export const MultiplayerProvider = ({ children }) => {
         setRoomCode(response.roomCode);
         setPlayers(response.room.players);
         setIsMultiplayer(true);
+        
+        // Save to localStorage for rejoin after refresh
+        localStorage.setItem('blitz-dutch-room', response.roomCode);
+        localStorage.setItem('blitz-dutch-player', playerName);
+        
         return response;
       } else {
         setError(response.error);
@@ -122,6 +144,11 @@ export const MultiplayerProvider = ({ children }) => {
         setRoomCode(response.room.code);
         setPlayers(response.room.players);
         setIsMultiplayer(true);
+        
+        // Save to localStorage for rejoin after refresh
+        localStorage.setItem('blitz-dutch-room', response.room.code);
+        localStorage.setItem('blitz-dutch-player', playerName);
+        
         return response;
       } else {
         setError(response.error);
@@ -143,6 +170,10 @@ export const MultiplayerProvider = ({ children }) => {
     setPlayers([]);
     setGameState(null);
     setIsMultiplayer(false);
+    
+    // Clear localStorage
+    localStorage.removeItem('blitz-dutch-room');
+    localStorage.removeItem('blitz-dutch-player');
   }, [roomCode]);
 
   const toggleReady = useCallback(() => {
