@@ -153,16 +153,42 @@ const MultiplayerGame = () => {
   if (gameState.gamePhase === 'ended') {
     return (
       <div className="min-h-screen p-4">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <UICard className="p-6 mb-6">
-            <div className="text-center">
-              <h1 className="text-4xl font-black text-white mb-4">Round Ended!</h1>
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-black text-white mb-2">Round Ended!</h1>
+              <p className="text-gray-400">Final Scores & Cards</p>
+            </div>
+
+            {/* Show all players with their revealed cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              {gameState.players.map((player, index) => (
+                <div key={player.id} className="space-y-4">
+                  <PlayerHand
+                    player={player}
+                    cards={player.hand.map(card => ({ ...card, isRevealed: true }))}
+                    isActive={false}
+                  />
+                  <div className="text-center">
+                    <div className="inline-block px-6 py-3 bg-white/10 rounded-lg border border-white/20">
+                      <p className="text-sm text-gray-400 uppercase tracking-wide">Round Score</p>
+                      <p className="text-3xl font-black text-white">{player.roundScore}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Scoreboard */}
+            <div className="mb-6">
               <Scoreboard players={gameState.players} showScores={true} />
-              <div className="mt-6 space-x-4">
-                <Button onClick={handleLeaveGame} variant="secondary">
-                  Back to Lobby
-                </Button>
-              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="text-center space-x-4">
+              <Button onClick={handleLeaveGame} variant="secondary" size="lg">
+                Back to Lobby
+              </Button>
             </div>
           </UICard>
         </div>
