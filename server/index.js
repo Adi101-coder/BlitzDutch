@@ -227,12 +227,88 @@ io.on('connection', (socket) => {
     if (room.gameState.gamePhase !== 'swap' || !room.gameState.drawnCard) return;
 
     const swappedCard = currentPlayer.hand[cardIndex];
-    currentPlayer.hand[cardIndex] = { ...room.gameState.drawnCard, isRevealed: false };
+    const drawnCard = room.gameState.drawnCard;
     
+    currentPlayer.hand[cardIndex] = { ...drawnCard, isRevealed: false };
     room.gameState.discardPile.push(swappedCard);
     room.gameState.drawnCard = null;
-    room.gameState.gamePhase = 'discard';
+
+    // Check for power cards (Jack or Queen)
+    if (drawnCard.rank === 'J') {
+      // Jack power: swap any two cards in play
+      room.gameState.gamePhase = 'power-jack';
+      room.gameState.jackSwapSelection = { playerIndex: null, cardIndex: null, count: 0 };
+      console.log('🃏 Jack power activated!');
+      io.to(roomCode).emit('game-state-updated', room.gameState);
+      return;
+    } else if (drawnCard.rank === 'Q') {
+      // Queen power: peek at any one card in play
+      room.gameState.gamePhase = 'power-queen';
+      console.log('👑 Queen power activated!');
+      io.to(roomCode).emit('game-state-updated', room.gameState);
+      return;
+    }
     
+    room.gameState.gamePhase = 'discard';
+    io.to(roomCode).emit('game-state-updated', room.gameState);
+  });
+
+  // Jack power: select cards to swap
+  socket.on('jack-card-select', (roomCode, playerIndex, cardIndex) => {
+    const room = rooms.get(roomCode);
+    if (!room || !room.gameState) return;
+
+    const currentPlayer = room.gameState.players[room.gameState.currentPlayerIndex];
+    if (currentPlayer.id !== socket.id) return;
+    if (room.gameState.gamePhase !== 'power-jack') return;
+
+    const selection = room.gameState.jackSwapSelection;
+
+    if (selection.count === 0) {
+      // First card selected
+      room.gameState.jackSwapSelection = { playerIndex, cardIndex, count: 1 };
+      console.log(`Jack power: First card selected - Player ${playerIndex}, Card ${cardIndex}`);
+      io.to(roomCode).emit('game-state-updated', room.gameState);
+    } else if (selection.count === 1) {
+      // Second card selected - perform swap
+      const card1 = room.gameState.players[selection.playerIndex].hand[selection.cardIndex];
+      const card2 = room.gameState.players[playerIndex].hand[cardIndex];
+
+      // Swap the cards
+      room.gameState.players[selection.playerIndex].hand[selection.cardIndex] = card2;
+      room.gameState.players[playerIndex].hand[cardIndex] = card1;
+
+      console.log(`Jack power: Swapped cards between Player ${selection.playerIndex} and Player ${playerIndex}`);
+
+      // Reset and move to discard phase
+      room.gameState.jackSwapSelection = { playerIndex: null, cardIndex: null, count: 0 };
+      room.gameState.gamePhase = 'discard';
+      io.to(roomCode).emit('game-state-updated', room.gameState);
+    }
+  });
+
+  // Queen power: peek at a card
+  socket.on('queen-card-peek', (roomCode, playerIndex, cardIndex) => {
+    const room = rooms.get(roomCode);
+    if (!room || !room.gameState) return;
+
+    const currentPlayer = room.gameState.players[room.gameState.currentPlayerIndex];
+    if (currentPlayer.id !== socket.id) return;
+    if (room.gameState.gamePhase !== 'power-queen') return;
+
+    const peekedCard = room.gameState.players[playerIndex].hand[cardIndex];
+    
+    console.log(`Queen power: Player ${currentPlayer.name} peeked at Player ${playerIndex}'s card ${cardIndex}`);
+
+    // Send peeked card only to current player
+    socket.emit('queen-card-revealed', {
+      playerIndex,
+      cardIndex,
+      card: peekedCard
+    });
+
+    // Move to discard phase
+    room.gameState.gamePhase = 'discard';
     io.to(roomCode).emit('game-state-updated', room.gameState);
   });
 

@@ -213,6 +213,18 @@ export const MultiplayerProvider = ({ children }) => {
     }
   }, [roomCode]);
 
+  const jackCardSelect = useCallback((playerIndex, cardIndex) => {
+    if (roomCode) {
+      socketService.jackCardSelect(roomCode, playerIndex, cardIndex);
+    }
+  }, [roomCode]);
+
+  const queenCardPeek = useCallback((playerIndex, cardIndex) => {
+    if (roomCode) {
+      socketService.queenCardPeek(roomCode, playerIndex, cardIndex);
+    }
+  }, [roomCode]);
+
   // Try to rejoin room after refresh (after all functions are defined)
   useEffect(() => {
     const savedRoom = localStorage.getItem('blitz-dutch-room');
@@ -251,6 +263,8 @@ export const MultiplayerProvider = ({ children }) => {
     swapCard,
     endTurn,
     callDutch,
+    jackCardSelect,
+    queenCardPeek,
   };
 
   return (

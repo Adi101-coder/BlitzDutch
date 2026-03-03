@@ -23,10 +23,13 @@ const MultiplayerGame = () => {
     swapCard,
     endTurn,
     callDutch,
+    jackCardSelect,
+    queenCardPeek,
   } = useMultiplayer();
 
   const [selectedCardIndex, setSelectedCardIndex] = useState(null);
   const [peekedCards, setPeekedCards] = useState({});
+  const [queenPeekedCard, setQueenPeekedCard] = useState(null);
 
   // Listen for card peek responses
   useEffect(() => {
@@ -47,10 +50,22 @@ const MultiplayerGame = () => {
       }, 2000);
     };
 
+    const handleQueenCardRevealed = (data) => {
+      // Show queen peeked card
+      setQueenPeekedCard(data);
+      
+      // Hide after 3 seconds
+      setTimeout(() => {
+        setQueenPeekedCard(null);
+      }, 3000);
+    };
+
     socketService.onCardPeeked(handleCardPeeked);
+    socketService.onQueenCardRevealed(handleQueenCardRevealed);
 
     return () => {
       socketService.off('card-peeked', handleCardPeeked);
+      socketService.off('queen-card-revealed', handleQueenCardRevealed);
     };
   }, []);
 
@@ -142,6 +157,16 @@ const MultiplayerGame = () => {
   const handleCallDutch = () => {
     if (gameState.dutchCalled) return;
     callDutch();
+  };
+
+  const handleJackCardSelect = (playerIndex, cardIndex) => {
+    if (!isMyTurn || gameState.gamePhase !== 'power-jack') return;
+    jackCardSelect(playerIndex, cardIndex);
+  };
+
+  const handleQueenCardPeek = (playerIndex, cardIndex) => {
+    if (!isMyTurn || gameState.gamePhase !== 'power-queen') return;
+    queenCardPeek(playerIndex, cardIndex);
   };
 
   const handleLeaveGame = () => {
@@ -243,12 +268,36 @@ const MultiplayerGame = () => {
             {gameState.players.map((player, index) => {
               if (index === myPlayerIndex) return null;
               const isThisPlayerActive = gameState.gamePhase === 'peek' ? false : index === gameState.currentPlayerIndex;
+              
+              // Show revealed card for Queen power
+              const cardsToShow = queenPeekedCard && queenPeekedCard.playerIndex === index
+                ? player.hand.map((card, idx) => 
+                    idx === queenPeekedCard.cardIndex 
+                      ? { ...queenPeekedCard.card, isRevealed: true }
+                      : card
+                  )
+                : player.hand;
+              
               return (
                 <PlayerHand
                   key={player.id}
                   player={player}
-                  cards={player.hand}
+                  cards={cardsToShow}
                   isActive={isThisPlayerActive}
+                  onCardClick={(cardIndex) => {
+                    if (gameState.gamePhase === 'power-jack' && isMyTurn) {
+                      handleJackCardSelect(index, cardIndex);
+                    } else if (gameState.gamePhase === 'power-queen' && isMyTurn) {
+                      handleQueenCardPeek(index, cardIndex);
+                    }
+                  }}
+                  selectedCardIndex={
+                    gameState.gamePhase === 'power-jack' &&
+                    gameState.jackSwapSelection?.count === 1 &&
+                    gameState.jackSwapSelection?.playerIndex === index
+                      ? gameState.jackSwapSelection.cardIndex
+                      : null
+                  }
                 />
               );
             })}
@@ -273,6 +322,24 @@ const MultiplayerGame = () => {
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
                     All players: peek at your cards ({myPlayer?.peekCount || 0}/2)
+                  </p>
+                </>
+              ) : gameState.gamePhase === 'power-jack' ? (
+                <>
+                  <p className="text-sm text-white font-semibold">
+                    🃏 Jack Power Active
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {isMyTurn ? 'Select two cards to swap' : `${currentPlayer?.name} is using Jack power`}
+                  </p>
+                </>
+              ) : gameState.gamePhase === 'power-queen' ? (
+                <>
+                  <p className="text-sm text-white font-semibold">
+                    👑 Queen Power Active
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {isMyTurn ? 'Select one card to peek' : `${currentPlayer?.name} is using Queen power`}
                   </p>
                 </>
               ) : (
@@ -327,9 +394,21 @@ const MultiplayerGame = () => {
                       handlePeekCard(index);
                     } else if (gameState.gamePhase === 'swap' && isMyTurn) {
                       handleCardSelect(index);
+                    } else if (gameState.gamePhase === 'power-jack' && isMyTurn) {
+                      handleJackCardSelect(myPlayerIndex, index);
+                    } else if (gameState.gamePhase === 'power-queen' && isMyTurn) {
+                      handleQueenCardPeek(myPlayerIndex, index);
                     }
                   }}
-                  selectedCardIndex={selectedCardIndex}
+                  selectedCardIndex={
+                    gameState.gamePhase === 'swap' 
+                      ? selectedCardIndex
+                      : gameState.gamePhase === 'power-jack' &&
+                        gameState.jackSwapSelection?.count === 1 &&
+                        gameState.jackSwapSelection?.playerIndex === myPlayerIndex
+                        ? gameState.jackSwapSelection.cardIndex
+                        : null
+                  }
                 />
 
                 {/* Peek Instructions */}
@@ -340,6 +419,31 @@ const MultiplayerGame = () => {
                     </p>
                     <p className="text-xs text-gray-400">
                       Click on any cards to view them
+                    </p>
+                  </UICard>
+                )}
+
+                {/* Jack Power Instructions */}
+                {gameState.gamePhase === 'power-jack' && isMyTurn && (
+                  <UICard className="mt-4 p-4 text-center border-white/20 bg-white/5">
+                    <p className="text-sm text-white font-semibold mb-2">
+                      🃏 Jack Power: Swap Two Cards
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Select any two cards from any players to swap them
+                      {gameState.jackSwapSelection?.count === 1 && ' (1/2 selected)'}
+                    </p>
+                  </UICard>
+                )}
+
+                {/* Queen Power Instructions */}
+                {gameState.gamePhase === 'power-queen' && isMyTurn && (
+                  <UICard className="mt-4 p-4 text-center border-white/20 bg-white/5">
+                    <p className="text-sm text-white font-semibold mb-2">
+                      👑 Queen Power: Peek at One Card
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Click on any card from any player to peek at it
                     </p>
                   </UICard>
                 )}

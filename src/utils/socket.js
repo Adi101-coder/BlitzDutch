@@ -97,6 +97,15 @@ class SocketService {
     this.socket.emit('call-dutch', roomCode);
   }
 
+  // Power card actions
+  jackCardSelect(roomCode, playerIndex, cardIndex) {
+    this.socket.emit('jack-card-select', roomCode, playerIndex, cardIndex);
+  }
+
+  queenCardPeek(roomCode, playerIndex, cardIndex) {
+    this.socket.emit('queen-card-peek', roomCode, playerIndex, cardIndex);
+  }
+
   sendGameAction(roomCode, action) {
     this.socket.emit('game-action', roomCode, action);
   }
@@ -136,6 +145,10 @@ class SocketService {
 
   onPlayerDisconnected(callback) {
     this.socket.on('player-disconnected', callback);
+  }
+
+  onQueenCardRevealed(callback) {
+    this.socket.on('queen-card-revealed', callback);
   }
 
   // Remove listeners
